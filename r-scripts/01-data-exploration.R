@@ -45,9 +45,19 @@ dat_raw <- read_csv(
   ))
 head(dat_raw)
 
+## create a copy to be modified for modeling:
+dat_all <- dat_raw
+
 ## ========================================================================= ##
 ## raw data exploration 
 ## ========================================================================= ##
+
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ## 
+## check missing values
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ## 
+
+dat_raw %>% map_int(~sum(is.na(.x)))
+## no missing values
 
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ## 
 ## univariate feature exploration
@@ -98,7 +108,12 @@ table(dat_raw[["StandardHours"]])
 ## EmployeeCount: constant, always 1
 ## Over18: constant, always Y
 ## StandardHours: constant at 80
-
+varnames_raw_exclude <- c(
+  "EmployeeCount",
+  "Over18",
+  "StandardHours"
+)
+dat_all <- dat_all %>% select(-one_of(varnames_raw_exclude))
 
 ## features to convert to categorical:
 ## WorkLifeBalance
