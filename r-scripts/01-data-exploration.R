@@ -125,7 +125,49 @@ dat_all <- dat_all %>% select(-one_of(varnames_raw_exclude))
 ## EnvironmentSatisfaction: 1-4, might be ordinal or likert-type...
 ## Education: 1-5, might be ordinal or likert-type...
 
+## convert to categorical
+varnames_categorical <- setdiff(
+  c(varnames_raw_categorical, c(
+    "WorkLifeBalance",
+    "StockOptionLevel",
+    "RelationshipSatisfaction",
+    "JobSatisfaction",
+    "JobLevel",
+    "JobInvolvement",
+    "EnvironmentSatisfaction",
+    "Education"
+  )),
+  varnames_raw_exclude)
+  
+dat_all <- dat_all %>% mutate_at(varnames_categorical, as.factor)
 
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ## 
+## multivariate exploration
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ## 
 
+## correlations (heterogenous correlation matrix):
+cormat_hetcor <- polycor::hetcor(as.data.frame(dat_all), std.err = FALSE, use = "pairwise")
+cormat <- cormat_hetcor[["correlations"]]
+cormat
 
+cormat_long <- reshape2::melt(cormat, na.rm = TRUE)
 
+## heatmap
+ggplot(data = cormat_long, aes(Var2, Var1, fill = value))+
+  geom_tile(color = "white")+
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1,1), space = "Lab", 
+                       name="Pearson\nCorrelation") +
+  theme_minimal()+ 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+                                   size = 12, hjust = 1))+
+  coord_fixed()
+
+## check high correlations:
+cormat_long %>% filter(Var1 != Var2, abs(value) > .8) %>% arrange(value)
+
+## JobLevel highly correlated with MonthlyIncome
+## JobLevel highly correlated with TotalWorkingYears
+## JobRole highly correlated wiht Department
+
+## [[?]] DailyRate not correlated with MonthlyIncome?
