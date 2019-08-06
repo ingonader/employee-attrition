@@ -20,6 +20,7 @@ options(tibble.width = Inf)
 ## load packages
 ## ========================================================================= ##
 
+library(dplyr)
 library(tibble)
 library(readr)
 library(magrittr)
