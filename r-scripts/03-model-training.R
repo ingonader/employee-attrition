@@ -103,7 +103,8 @@ rdesc <- makeResampleDesc(predict = "both",
 
 
 ## parameters for parameter tuning:
-ctrl <- makeTuneControlRandom(maxit = 10)  ## use more in final estimation.
+n_maxit <- 10  ## use more in final estimation.
+ctrl <- makeTuneControlRandom(maxit = n_maxit)  
 tune_measures <- list(auc, f1, acc, mmce, timetrain, timepredict)
 
 
@@ -262,4 +263,72 @@ getParamSet("classif.featureless")
 # toc()
 # getParamSet("regr.svm")
 
+
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+## refit all learners with their tuned parameters (with CV)
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+
+## set random seed, also valid for parallel execution:
+set.seed(427121, "L'Ecuyer")
+
+lrns_tuned <- list(
+  makeLearner("classif.logreg", predict.type = "prob", 
+              id = "Logistic\nRegression"),
+  makeLearner("classif.glmnet", predict.type = "prob", 
+              id = "Elastic Net\nRegression", par.vals = tune_results_glmnet$x),
+  makeLearner("classif.ranger", predict.type = "prob", 
+              id = "Random Forest", par.vals = tune_results_ranger$x),
+  makeLearner("classif.glmboost", predict.type = "prob", 
+              id = "Model-Based Boosting\n(glmboost)", par.vals = tune_results_glmboost$x),
+  makeLearner("classif.xgboost", predict.type = "prob", 
+              id = "Gradient Boosting\n(XGBoost)", par.vals = tune_results_xgboost$x),
+  makeLearner("classif.ada", predict.type = "prob", 
+              id = "Adaboost", par.vals = tune_results_ada$x),
+  makeLearner("classif.dbnDNN", predict.type = "prob", 
+              id = "Deep Neural\nNetwork", par.vals = tune_results_dbndnn$x),
+  makeLearner("classif.featureless", predict.type = "prob", 
+              id = "Featureless\nClassifier", par.vals = tune_results_featureless$x)
+)
+
+## create training aggregation measures:
+auc.train.mean <- setAggregation(auc, train.mean)
+f1.train.mean <- setAggregation(f1, train.mean)
+acc.train.mean <- setAggregation(acc, train.mean)
+mmce.train.mean <- setAggregation(mmce, train.mean)
+
+n_reps <- 3
+n_folds <- 5
+## set resampling strategy for benchmarking:
+rdesc_bm <- makeResampleDesc(predict = "both", 
+                             method = "RepCV", reps = n_reps, folds = n_folds)
+
+## refit tuned models on complete training data:
+tic("time: refit tuned models on training data")
+bmr_train <- benchmark(
+  lrns_tuned, task_attrition_basic_mm, rdesc_bm,
+  measures = list(auc, #rmse.train.mean,
+                  f1, #mae.train.mean,
+                  acc, #rsq.train.mean,
+                  timetrain, timepredict)
+)
+toc()
+
+bmr_train
+plotBMRBoxplots(bmr_train)
+plotBMRBoxplots(bmr_train, 
+                measure = auc, 
+                style = "violin",
+                pretty.names = FALSE) +
+  aes(fill = learner.id) + geom_point(alpha = .5) +
+  labs(
+    title = paste0("Area under the ROC curve (AUC) of ", n_reps, "x repeated ",
+                   n_folds, "-fold cross validation"),
+    subtitle = paste0("with hyperparameters from ", n_maxit, " iterations of random search cross validation"),
+    y = "AUC",
+    x = ""
+  ) +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+
+
+# parallelMap::parallelStop()
 
