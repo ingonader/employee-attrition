@@ -53,23 +53,40 @@ dat_model <- dat_train[varnames_model]
 ## create model matrix (one-hot-encoding)
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
 
-## define formulas (model matrix / design matrix):
-formula_this <- paste0(
-  varnames_target, " ~ ", 
-  paste(varnames_features, collapse = " + ")
-)
-formula_this
+## function to do one-hot encoding of categorical variables:
+## (based on global variables only for exploration)
+create_mm_data <- function(dat, interaction = NA) {
+  ## define formulas (model matrix / design matrix):
+  if (is.na(interaction)) {
+    formula_this <- paste0(
+      varnames_target, " ~ ",
+      paste(varnames_features, collapse = " + ")
+    )
+  } 
+  else {
+    formula_this <- paste0(
+      varnames_target, " ~ ", 
+      "(", 
+      paste(varnames_features, collapse = " + "),
+      ") ^ ", interaction
+    )
+  }
 
-## make model frame with interactions for regression type models:
-dat_model_mm <- model.matrix(
-  as.formula(formula_this), 
-  dat_model) %>% as.data.frame()
-## add target variable:
-dat_model_mm[varnames_target] <- dat_model[varnames_target]
-## sanitize names:
-names(dat_model_mm) <- names(dat_model_mm) %>% stringr::str_replace_all(":", "_x_") %>%
-  make.names() %>%
-  stringr::str_replace_all("\\.+", "_")
+  ## make model frame with interactions for regression type models:
+  dat_model_mm <- model.matrix(
+    as.formula(formula_this), 
+    dat) %>% as.data.frame()
+  ## add target variable:
+  dat_model_mm[varnames_target] <- dat[varnames_target]
+  ## sanitize names:
+  names(dat_model_mm) <- names(dat_model_mm) %>% stringr::str_replace_all(":", "_x_") %>%
+    make.names() %>%
+    stringr::str_replace_all("\\.+", "_")
+  
+  return(dat_model_mm)
+}
+
+dat_model_mm <- create_mm_data(dat_model)
 
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
 ## define tasks
@@ -313,6 +330,9 @@ bmr_train <- benchmark(
 )
 toc()
 
+parallelMap::parallelStop()
+
+
 bmr_train
 plotBMRBoxplots(bmr_train)
 plotBMRBoxplots(bmr_train, 
@@ -329,6 +349,56 @@ plotBMRBoxplots(bmr_train,
   ) +
   theme(axis.text.x = element_text(angle = 30, hjust = 1))
 
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+## refit all learners on full training set and evaluate on eval set
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+
+dat_modeleval <- bind_rows(
+  dat_train[varnames_model],
+  dat_eval[varnames_model]
+)
+dat_modeleval_mm <- create_mm_data(dat_modeleval)
+
+idx_train <- 1:nrow(dat_train)
+idx_eval <- nrow(dat_train) + (1:nrow(dat_eval))
+
+## create a task: (= data + meta-information)
+task_attrition_basic_mm_eval <- makeClassifTask(
+  id = "task_attrition_basic_eval",
+  data = dat_modeleval_mm,
+  target = varnames_target
+  #fixup.data = "no", check.data = FALSE, ## for createDummyFeatures to work.
+)
+
+## and estimate performance on an identical test set:
+rdesc_bmf <- makeFixedHoldoutInstance(train.inds = idx_train,
+                                      test.inds = idx_eval,
+                                      size = length(c(idx_train, idx_eval)))
+rdesc_bmf
+
+## refit models on complete training data, validate on test data:
+tic("time: refit models on complete training data, validate on eval data")
+bmr_traineval <- benchmark(
+  lrns_tuned, task_attrition_basic_mm_eval, rdesc_bmf,
+  # measures = list(rmse, mae, rsq)
+  measures = list(auc, #rmse.train.mean,
+                  f1, #mae.train.mean,
+                  acc, #rsq.train.mean,
+                  timetrain, timepredict)
+)
+toc()
+
+plotBMRBoxplots(bmr_traineval)
 
 # parallelMap::parallelStop()
 
+
+
+## next steps:
+## * (done) re-estimate on complete training set
+## * (done) benchmark on validation set
+## * try refitting linear models (only) with interactions and feature selection
+## * choose best model of each class, quantify performance
+## * take best model and inspect it:
+##   * variable importance
+##   * ice plots or similar
