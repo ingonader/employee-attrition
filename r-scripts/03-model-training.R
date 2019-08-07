@@ -106,6 +106,25 @@ rdesc <- makeResampleDesc(predict = "both",
 ctrl <- makeTuneControlRandom(maxit = 10)  ## use more in final estimation.
 tune_measures <- list(auc, f1, acc, mmce, timetrain, timepredict)
 
+
+## classif.logreg (later when refitting)
+
+## classif.glmnet
+tic("time: classif.glmnet")
+tune_results_glmnet <- tuneParams(
+  makeLearner("classif.glmnet", predict.type = "prob"),
+  task = task_attrition_basic_mm, resampling = rdesc, measures = tune_measures, control = ctrl,
+  par.set = makeParamSet(
+    makeNumericParam("alpha", lower = 0, upper = 1),
+    makeIntegerParam("s", lower = 0, upper = 1000),
+    makeIntegerParam("nlambda", lower = 50, upper = 500),
+    makeLogicalParam("standardize")
+  )
+)
+toc()
+getParamSet("classif.glmnet")
+
+
 ## faster random forest implementation:
 tic("time: tuning ranger")
 tune_results_ranger <- tuneParams(
@@ -119,6 +138,20 @@ tune_results_ranger <- tuneParams(
 )
 toc()
 
+## classif.glmboost
+tic("time: tuning classif.glmboost")
+tune_results_glmboost <- tuneParams(
+  makeLearner("classif.glmboost", predict.type = "prob"),
+  task = task_attrition_basic_mm, resampling = rdesc, measures = tune_measures, control = ctrl,
+  par.set = makeParamSet(
+    makeIntegerParam("mstop", lower = 50, upper = 1000),
+    makeNumericParam("nu", lower = .01, upper = .8),
+    makeLogicalParam("center")
+  )
+)
+toc()
+getParamSet("classif.glmboost")
+
 ## gradient boosting using xgboost:
 tic("time: tuning xgboost")
 tune_results_xgboost <- tuneParams(
@@ -130,6 +163,26 @@ tune_results_xgboost <- tuneParams(
   )
 )
 toc()
+
+## adaboost:
+tic("time: ada")
+tune_results_ada <- tuneParams(
+  makeLearner("classif.ada", predict.type = "prob"),
+  task = task_attrition_basic_mm, resampling = rdesc, measures = tune_measures, control = ctrl,
+  par.set = makeParamSet(
+    makeDiscreteParam("type", c("discrete", "real", "gentle")),
+    makeIntegerParam("iter", lower = 40, upper = 200),
+    makeNumericParam("nu", lower = 0.1, upper = 1),
+    makeNumericParam("bag.frac", lower = .2, upper = .8),
+    makeLogicalParam("model.coef"),
+    makeIntegerParam("max.iter", lower = 20, upper = 100),
+    makeIntegerParam("minbucket", lower = 30, upper = 200),
+    makeNumericParam("cp", lower = .005, upper = .1)
+    #makeIntegerParam("maxdepth", lower = 30, upper = 100)
+  )
+)
+toc()
+getParamSet("classif.ada")
 
 # ## extraTrees:
 # ## (much too slow)
@@ -148,9 +201,24 @@ toc()
 # toc()
 # getParamSet("classif.extraTrees")
 
+# # classif.evtree 
+# tic("time: evtree")
+# tune_results_evtree <- tuneParams(
+#   makeLearner("classif.evtree", predict.type = "prob"),
+#   task = task_attrition_basic_mm, resampling = rdesc, measures = tune_measures, control = ctrl,
+#   par.set = makeParamSet(
+#     makeIntegerParam("minbucket", lower = 30, upper = 200),
+#     makeIntegerParam("maxdepth", lower = 4, upper = 30),
+#     makeIntegerParam("niterations", lower = 40, upper = 200),
+#     makeIntegerParam("ntrees", lower = 50, upper = 1000)
+#   )
+# )
+# toc()
+# getParamSet("classif.evtree")
+
 ## dbnDNN:
 tic("time: dbnDNN")
-tune_results_xgboost <- tuneParams(
+tune_results_dbndnn <- tuneParams(
   makeLearner("classif.dbnDNN", predict.type = "prob"),
   task = task_attrition_basic_mm, resampling = rdesc, measures = tune_measures, control = ctrl,
   par.set = makeParamSet(
@@ -167,9 +235,17 @@ tune_results_xgboost <- tuneParams(
 toc()
 getParamSet("classif.dbnDNN")
 
-# classif.dbnDNN 
-# classif.logreg (later when refitting)
-
+# classif.featureless 
+tic("time: featureless")
+tune_results_featureless <- tuneParams(
+  makeLearner("classif.featureless", predict.type = "prob"),
+  task = task_attrition_basic_mm, resampling = rdesc, measures = tune_measures, control = ctrl,
+  par.set = makeParamSet(
+    makeDiscreteParam("method", c("majority", "sample-prior"))
+  )
+)
+toc()
+getParamSet("classif.featureless")
 
 # ## support vector machine
 # ## (too slow)
@@ -184,28 +260,6 @@ getParamSet("classif.dbnDNN")
 #   )
 # )
 # toc()
-# #getParamSet("regr.svm")
+# getParamSet("regr.svm")
 
-## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-## refit all learners with their tuned parameters (with CV)
-## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-
-## set random seed, also valid for parallel execution:
-set.seed(427121, "L'Ecuyer")
-
-lrns_tuned <- list(
-  makeLearner("regr.lm", id = "OLS Regression"),
-  makeLearner("regr.glmnet", id = "Elastic Net Regression", par.vals = tune_results_glmnet$x),
-  makeLearner("regr.rpart", id = "Decision Tree", par.vals = tune_results_rpart$x),
-  makeLearner("regr.ranger", id = "Random Forest", par.vals = tune_results_ranger$x),
-  #makeLearner("regr.gbm", id = "Gradient Boosting (gbm)", par.vals = tune_results_gbm$x),
-  makeLearner("regr.glmboost", id = "Model-Based Boosting (glmboost)", par.vals = tune_results_glmboost$x),
-  makeLearner("regr.xgboost", id = "Gradient Boosting (XGBoost)", par.vals = tune_results_xgboost$x),
-  makeLearner("regr.nnet", id = "Neural Net", par.vals = tune_results_nnet$x),
-  makeLearner("regr.fnn", id = "Fast k-NN", par.vals = tune_results_fnn$x),
-  makeLearner("regr.svm", id = "Support Vector Machine", par.vals = tune_results_svm$x)
-  #makeLearner("regr.ksvm", par.vals = tune_results_ksvm$x)
-)
-
-# parallelMap::parallelStop()
 
