@@ -120,9 +120,9 @@ rdesc <- makeResampleDesc(predict = "both",
 
 
 ## parameters for parameter tuning:
-n_maxit <- 10  ## use more in final estimation.
+n_maxit <- 10  ## 10 currently; use more (about 40) in final estimation.
 ctrl <- makeTuneControlRandom(maxit = n_maxit)  
-tune_measures <- list(auc, f1, acc, mmce, timetrain, timepredict)
+tune_measures <- list(mcc, auc, f1, acc, mmce, timetrain, timepredict)
 
 
 ## classif.logreg (later when refitting)
@@ -308,6 +308,7 @@ lrns_tuned <- list(
 )
 
 ## create training aggregation measures:
+mcc.train.mean <- setAggregation(mcc, train.mean)
 auc.train.mean <- setAggregation(auc, train.mean)
 f1.train.mean <- setAggregation(f1, train.mean)
 acc.train.mean <- setAggregation(acc, train.mean)
@@ -335,19 +336,24 @@ parallelMap::parallelStop()
 
 bmr_train
 plotBMRBoxplots(bmr_train)
-plotBMRBoxplots(bmr_train, 
-                measure = auc, 
-                style = "violin",
-                pretty.names = FALSE) +
-  aes(fill = learner.id) + geom_point(alpha = .5) +
-  labs(
-    title = paste0("Area under the ROC curve (AUC) of ", n_reps, "x repeated ",
-                   n_folds, "-fold cross validation"),
-    subtitle = paste0("with hyperparameters from ", n_maxit, " iterations of random search cross validation"),
-    y = "AUC",
-    x = ""
-  ) +
-  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+
+plotBMRBoxplots_cust <- function(bmr, measure_mlr, measure_name, measure_longname) {
+  plotBMRBoxplots(bmr, 
+                  measure = measure_mlr, 
+                  style = "violin",
+                  pretty.names = FALSE) +
+    aes(fill = learner.id) + geom_point(alpha = .5) +
+    labs(
+      title = paste0(measure_longname, " (", measure_name, ") of ", n_reps, "x repeated ",
+                     n_folds, "-fold cross validation"),
+      subtitle = paste0("with hyperparameters from ", n_maxit, " iterations of random search cross validation"),
+      y = measure_name,
+      x = ""
+    ) +
+    theme(axis.text.x = element_text(angle = 30, hjust = 1))
+}
+plotBMRBoxplots_cust(bmr_train, auc, "AUC", "Area under the ROC curve")
+plotBMRBoxplots_cust(bmr_train, mcc, "MCC", "Matthew's Correlation Coefficient")
 
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
 ## refit all learners on full training set and evaluate on eval set
