@@ -120,7 +120,7 @@ rdesc <- makeResampleDesc(predict = "both",
 
 
 ## parameters for parameter tuning:
-n_maxit <- 10  ## 10 currently; use more (about 40) in final estimation.
+n_maxit <- 3  ## 10 currently; use more (about 40) in final estimation.
 ctrl <- makeTuneControlRandom(maxit = n_maxit)  
 tune_measures <- list(mcc, auc, f1, acc, mmce, timetrain, timepredict)
 
@@ -142,6 +142,21 @@ tune_results_glmnet <- tuneParams(
 toc()
 getParamSet("classif.glmnet")
 
+## decision tree:
+tic("time: tuning classif.rpart")
+tune_results_rpart <- tuneParams(
+  makeLearner("classif.rpart", predict.type = "prob"),
+  task = task_attrition_basic_mm, resampling = rdesc, measures = tune_measures, control = ctrl,
+  par.set = makeParamSet(
+    makeIntegerParam("minsplit", lower = 20, upper = 200),
+    makeIntegerParam("minbucket", lower = 20, upper = 100),
+    makeNumericParam("cp", lower = .1, upper = 1)
+  )
+)
+toc()
+getParamSet("classif.rpart")
+
+
 
 ## faster random forest implementation:
 tic("time: tuning ranger")
@@ -162,8 +177,8 @@ tune_results_glmboost <- tuneParams(
   makeLearner("classif.glmboost", predict.type = "prob"),
   task = task_attrition_basic_mm, resampling = rdesc, measures = tune_measures, control = ctrl,
   par.set = makeParamSet(
-    makeIntegerParam("mstop", lower = 50, upper = 1000),
-    makeNumericParam("nu", lower = .01, upper = .8),
+    makeIntegerParam("mstop", lower = 20, upper = 1000),
+    makeNumericParam("nu", lower = .001, upper = .8),
     makeLogicalParam("center")
   )
 )
@@ -190,7 +205,7 @@ tune_results_ada <- tuneParams(
   par.set = makeParamSet(
     makeDiscreteParam("type", c("discrete", "real", "gentle")),
     makeIntegerParam("iter", lower = 40, upper = 200),
-    makeNumericParam("nu", lower = 0.1, upper = 1),
+    makeNumericParam("nu", lower = 0.01, upper = 1),
     makeNumericParam("bag.frac", lower = .2, upper = .8),
     makeLogicalParam("model.coef"),
     makeIntegerParam("max.iter", lower = 20, upper = 100),
@@ -234,6 +249,22 @@ getParamSet("classif.ada")
 # toc()
 # getParamSet("classif.evtree")
 
+## neural net:
+tic("time: nnet")
+tune_results_nnet <- tuneParams(
+  makeLearner("classif.nnet", predict.type = "prob"),
+  task = task_attrition_basic_mm, resampling = rdesc, measures = tune_measures, control = ctrl,
+  par.set = makeParamSet(
+    makeIntegerParam("size", lower = 3, upper = 5),
+    makeIntegerParam("maxit", lower = 50, upper = 500),
+    makeLogicalParam("skip"),
+    makeNumericParam("decay", lower = -1, upper = 1)
+  )
+)
+toc()
+# getParamSet("classif.nnet")
+
+
 ## dbnDNN:
 tic("time: dbnDNN")
 tune_results_dbndnn <- tuneParams(
@@ -251,7 +282,7 @@ tune_results_dbndnn <- tuneParams(
   )
 )
 toc()
-getParamSet("classif.dbnDNN")
+# getParamSet("classif.dbnDNN")
 
 # classif.featureless 
 tic("time: featureless")
@@ -293,6 +324,8 @@ lrns_tuned <- list(
               id = "Logistic\nRegression"),
   makeLearner("classif.glmnet", predict.type = "prob", 
               id = "Elastic Net\nRegression", par.vals = tune_results_glmnet$x),
+  makeLearner("classif.rpart", predict.type = "prob", 
+              id = "Decision Tree", par.vals = tune_results_rpart$x),
   makeLearner("classif.ranger", predict.type = "prob", 
               id = "Random Forest", par.vals = tune_results_ranger$x),
   makeLearner("classif.glmboost", predict.type = "prob", 
@@ -301,6 +334,8 @@ lrns_tuned <- list(
               id = "Gradient Boosting\n(XGBoost)", par.vals = tune_results_xgboost$x),
   makeLearner("classif.ada", predict.type = "prob", 
               id = "Adaboost", par.vals = tune_results_ada$x),
+  makeLearner("classif.nnet", predict.type = "prob", 
+              id = "Neural Net", par.vals = tune_results_nnet$x),
   makeLearner("classif.dbnDNN", predict.type = "prob", 
               id = "Deep Neural\nNetwork", par.vals = tune_results_dbndnn$x),
   makeLearner("classif.featureless", predict.type = "prob", 
@@ -324,9 +359,10 @@ rdesc_bm <- makeResampleDesc(predict = "both",
 tic("time: refit tuned models on training data")
 bmr_train <- benchmark(
   lrns_tuned, task_attrition_basic_mm, rdesc_bm,
-  measures = list(auc, #rmse.train.mean,
-                  f1, #mae.train.mean,
-                  acc, #rsq.train.mean,
+  measures = list(mcc.train.mean, mcc,
+                  auc.train.mean, auc,
+                  f1.train.mean, f1,
+                  acc.train.mean, acc,
                   timetrain, timepredict)
 )
 toc()
@@ -386,10 +422,10 @@ rdesc_bmf
 tic("time: refit models on complete training data, validate on eval data")
 bmr_traineval <- benchmark(
   lrns_tuned, task_attrition_basic_mm_eval, rdesc_bmf,
-  # measures = list(rmse, mae, rsq)
-  measures = list(auc, #rmse.train.mean,
-                  f1, #mae.train.mean,
-                  acc, #rsq.train.mean,
+  measures = list(mcc,
+                  auc,
+                  f1,
+                  acc,
                   timetrain, timepredict)
 )
 toc()
@@ -542,6 +578,10 @@ print(step.model2$bestTune)
 print(coef(step.model2$finalModel, 6))
 
 
+
+## glmboost
+## glmnet with 2 interactions
+## standard neural net with 1 or 2 hidden layers
 
 ## next steps:
 ## * (done) re-estimate on complete training set
