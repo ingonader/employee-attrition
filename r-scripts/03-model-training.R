@@ -87,6 +87,7 @@ create_mm_data <- function(dat, interaction = NA) {
 }
 
 dat_model_mm <- create_mm_data(dat_model)
+# dat_model_mm <- dat_model  ## debug
 
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
 ## define tasks
@@ -120,7 +121,7 @@ rdesc <- makeResampleDesc(predict = "both",
 
 
 ## parameters for parameter tuning:
-n_maxit <- 50  ## 10 currently; use more (about 40) in final estimation.
+n_maxit <- 3 ## 10 currently; use more (about 50) in final estimation.
 ctrl <- makeTuneControlRandom(maxit = n_maxit)  
 tune_measures <- list(mcc, auc, f1, acc, mmce, timetrain, timepredict)
 
@@ -140,7 +141,7 @@ tune_results_glmnet <- tuneParams(
   )
 )
 toc()
-getParamSet("classif.glmnet")
+# getParamSet("classif.glmnet")
 
 ## decision tree:
 tic("time: tuning classif.rpart")
@@ -150,11 +151,11 @@ tune_results_rpart <- tuneParams(
   par.set = makeParamSet(
     makeIntegerParam("minsplit", lower = 20, upper = 200),
     makeIntegerParam("minbucket", lower = 20, upper = 100),
-    makeNumericParam("cp", lower = .1, upper = 1)
+    makeNumericParam("cp", lower = .01, upper = 1)
   )
 )
 toc()
-getParamSet("classif.rpart")
+# getParamSet("classif.rpart")
 
 
 
@@ -183,7 +184,7 @@ tune_results_glmboost <- tuneParams(
   )
 )
 toc()
-getParamSet("classif.glmboost")
+# getParamSet("classif.glmboost")
 
 ## gradient boosting using xgboost:
 tic("time: tuning xgboost")
@@ -215,7 +216,7 @@ tune_results_ada <- tuneParams(
   )
 )
 toc()
-getParamSet("classif.ada")
+# getParamSet("classif.ada")
 
 # ## extraTrees:
 # ## (much too slow)
@@ -294,7 +295,7 @@ tune_results_featureless <- tuneParams(
   )
 )
 toc()
-getParamSet("classif.featureless")
+# getParamSet("classif.featureless")
 
 # ## support vector machine
 # ## (too slow)
@@ -336,21 +337,29 @@ lrns_tuned <- list(
               id = "Adaboost", par.vals = tune_results_ada$x),
   makeLearner("classif.nnet", predict.type = "prob", 
               id = "Neural Net", par.vals = tune_results_nnet$x),
-  makeLearner("classif.dbnDNN", predict.type = "prob", 
-              id = "Deep Neural\nNetwork", par.vals = tune_results_dbndnn$x),
+  # makeLearner("classif.dbnDNN", predict.type = "prob", 
+  #             id = "Deep Neural\nNetwork", par.vals = tune_results_dbndnn$x),
   makeLearner("classif.featureless", predict.type = "prob", 
               id = "Featureless\nClassifier", par.vals = tune_results_featureless$x)
 )
 
 ## create training aggregation measures:
-mcc.train.mean <- setAggregation(mcc, train.mean)
-auc.train.mean <- setAggregation(auc, train.mean)
-f1.train.mean <- setAggregation(f1, train.mean)
-acc.train.mean <- setAggregation(acc, train.mean)
-mmce.train.mean <- setAggregation(mmce, train.mean)
+mcc_train <- setAggregation(mcc, train.mean)
+mcc_train[["id"]] <- "mcc_train"
+auc_train <- setAggregation(auc, train.mean)
+auc_train[["id"]] <- "auc_train"
+f1_train <- setAggregation(f1, train.mean)
+f1_train[["id"]] <- "f1_train"
+acc_train <- setAggregation(acc, train.mean)
+acc_train[["id"]] <- "acc_train"
+mmce_train <- setAggregation(mmce, train.mean)
+mmce_train[["id"]] <- "mmce_train"
+
+mlr::mcc %>% str()
 
 n_reps <- 3
-n_folds <- 5
+n_folds <- 2 ## debug; should be 5 (at least)
+
 ## set resampling strategy for benchmarking:
 rdesc_bm <- makeResampleDesc(predict = "both", 
                              method = "RepCV", reps = n_reps, folds = n_folds)
@@ -359,11 +368,17 @@ rdesc_bm <- makeResampleDesc(predict = "both",
 tic("time: refit tuned models on training data")
 bmr_train <- benchmark(
   lrns_tuned, task_attrition_basic_mm, rdesc_bm,
-  measures = list(mcc.train.mean, mcc,
-                  auc.train.mean, auc,
-                  f1.train.mean, f1,
-                  acc.train.mean, acc,
+  measures = list(mcc_train, mcc,
+                  auc_train, auc,
+                  f1_train, f1,
+                  acc_train, acc,
                   timetrain, timepredict)
+  # measures = list(mcc,
+  #                 auc,
+  #                 f1,
+  #                 acc,
+  #                 timetrain, timepredict)
+  
 )
 toc()
 
@@ -372,6 +387,50 @@ parallelMap::parallelStop()
 
 bmr_train
 plotBMRBoxplots(bmr_train)
+## Error: `data` must be uniquely named but has duplicate columns
+## Suspected reason: using measures for training and testing!
+## Confirmed reason: when just setting the aggregation measure (for training set), id stays the same;
+## that conflicts with converting the data to a data.frame (will result in identical column names,
+## leading to problems in plotBMRBoxplots() function)
+
+## debug:
+names(bmr_train)
+str(bmr_train, max.level = 2)
+str(bmr_train[["measures"]])
+str(bmr_train[["measures"]][1:2])
+
+# identical(
+#   bmr_train[["measures"]][[1]],
+#   bmr_train[["measures"]][[2]]
+# )
+
+bmr_tmp <- bmr_train
+bmr_tmp[["measures"]] <- map(bmr_tmp[["measures"]], function(i) {
+   if (substr(i[["aggr"]], 1, 5)[[1]] == "train") {
+     i[["id"]] <- paste0(i[["id"]], "_train")
+     i[["name"]] <- paste0(i[["name"]], " (train)")
+   } 
+  return(i)
+})
+plotBMRBoxplots(bmr_tmp)
+## renaming doesn't seem to work; get rid of training?
+
+bmr_tmp <- bmr_train
+bmr_tmp[["measures"]] <- bmr_tmp[["measures"]][c(2, 4)]
+plotBMRBoxplots(bmr_tmp)
+## getting rid in "measures" also doesn't work... get rid somewhere else?
+
+
+
+as.data.frame(bmr_train) %>% head()
+## [[here]]!!! 
+
+## check [["results"]], and see if measure names here are a problem!
+bmr_tmp <- bmr_train
+str(bmr_tmp[["results"]], max.level = 2)
+
+
+## debug end; 
 
 plotBMRBoxplots_cust <- function(bmr, measure_mlr, measure_name, measure_longname) {
   plotBMRBoxplots(bmr, 
