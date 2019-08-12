@@ -122,7 +122,7 @@ rdesc <- makeResampleDesc(predict = "both",
 ## parameters for parameter tuning:
 n_maxit <- 50 ## 10 currently; use more (about 50) in final estimation.
 ctrl <- makeTuneControlRandom(maxit = n_maxit)  
-tune_measures <- list(mcc, auc, f1, acc, mmce, timetrain, timepredict)
+tune_measures <- list(mcc, auc, f1, bac, acc, mmce, timetrain, timepredict)
 
 
 ## classif.logreg (later when refitting)
@@ -133,14 +133,18 @@ tune_results_glmnet <- tuneParams(
   makeLearner("classif.glmnet", predict.type = "prob"),
   task = task_attrition_basic_mm, resampling = rdesc, measures = tune_measures, control = ctrl,
   par.set = makeParamSet(
+    #makeIntegerParam("nfolds", lower = 3, upper = 6),
     makeNumericParam("alpha", lower = 0, upper = 1),
-    makeIntegerParam("s", lower = 0, upper = 1000),
-    makeIntegerParam("nlambda", lower = 50, upper = 500),
-    makeLogicalParam("standardize")
+    #makeIntegerParam("s", lower = 0, upper = 1000),
+    #makeIntegerParam("nlambda", lower = 1, upper = 500),
+    #makeNumericParam("lambda", lower = 0, upper = 10),
+    makeLogicalParam("standardize", default = TRUE, tunable = FALSE),
+    makeLogicalParam("intercept")
   )
 )
 toc()
 # getParamSet("classif.glmnet")
+# getParamSet("classif.cvglmnet")
 
 ## decision tree:
 tic("time: tuning classif.rpart")
@@ -255,8 +259,8 @@ tune_results_nnet <- tuneParams(
   makeLearner("classif.nnet", predict.type = "prob"),
   task = task_attrition_basic_mm, resampling = rdesc, measures = tune_measures, control = ctrl,
   par.set = makeParamSet(
-    makeIntegerParam("size", lower = 3, upper = 5),
-    makeIntegerParam("maxit", lower = 50, upper = 500),
+    makeIntegerParam("size", lower = 3, upper = 12),
+    makeIntegerParam("maxit", lower = 50, upper = 800),
     makeLogicalParam("skip"),
     makeNumericParam("decay", lower = -1, upper = 1)
   )
@@ -320,46 +324,36 @@ toc()
 set.seed(427121, "L'Ecuyer")
 
 lrns_tuned <- list(
-  makeLearner("classif.logreg", predict.type = "prob", 
-              id = "Logistic\nRegression"),
-  makeLearner("classif.glmnet", predict.type = "prob", 
-              id = "Elastic Net\nRegression", par.vals = tune_results_glmnet$x),
-  makeLearner("classif.rpart", predict.type = "prob", 
-              id = "Decision Tree", par.vals = tune_results_rpart$x),
-  makeLearner("classif.ranger", predict.type = "prob", 
-              id = "Random Forest", par.vals = tune_results_ranger$x),
-  makeLearner("classif.glmboost", predict.type = "prob", 
-              id = "Model-Based Boosting\n(glmboost)", par.vals = tune_results_glmboost$x),
-  makeLearner("classif.xgboost", predict.type = "prob", 
-              id = "Gradient Boosting\n(XGBoost)", par.vals = tune_results_xgboost$x),
-  makeLearner("classif.ada", predict.type = "prob", 
-              id = "Adaboost", par.vals = tune_results_ada$x),
-  makeLearner("classif.nnet", predict.type = "prob", 
-              id = "Neural Net", par.vals = tune_results_nnet$x),
+  makeLearner("classif.logreg", predict.type = "prob"),
+  makeLearner("classif.glmnet", predict.type = "prob", par.vals = tune_results_glmnet$x),
+  #makeLearner("classif.rpart", predict.type = "prob", par.vals = tune_results_rpart$x),
+  makeLearner("classif.ranger", predict.type = "prob", par.vals = tune_results_ranger$x),
+  makeLearner("classif.glmboost", predict.type = "prob", par.vals = tune_results_glmboost$x),
+  makeLearner("classif.xgboost", predict.type = "prob", par.vals = tune_results_xgboost$x),
+  makeLearner("classif.ada", predict.type = "prob", par.vals = tune_results_ada$x),
+  makeLearner("classif.nnet", predict.type = "prob", par.vals = tune_results_nnet$x)
   # makeLearner("classif.dbnDNN", predict.type = "prob", 
   #             id = "Deep Neural\nNetwork", par.vals = tune_results_dbndnn$x),
-  makeLearner("classif.featureless", predict.type = "prob", 
-              id = "Featureless\nClassifier", par.vals = tune_results_featureless$x)
+  # makeLearner("classif.featureless", predict.type = "prob", 
+  #             id = "Featureless\nClassifier", par.vals = tune_results_featureless$x)
 )
 
 ## create training aggregation measures:
 mcc_train <- setAggregation(mcc, train.mean)
 mcc_train[["id"]] <- "mcc_train"
-#mcc_train[["properties"]] 
 auc_train <- setAggregation(auc, train.mean)
 auc_train[["id"]] <- "auc_train"
 f1_train <- setAggregation(f1, train.mean)
 f1_train[["id"]] <- "f1_train"
+bac_train <- setAggregation(bac, train.mean)
+bac_train[["id"]] <- "bac_train"
 acc_train <- setAggregation(acc, train.mean)
 acc_train[["id"]] <- "acc_train"
 mmce_train <- setAggregation(mmce, train.mean)
 mmce_train[["id"]] <- "mmce_train"
 
-mcc %>% str()
-mcc_train %>% str()
-
 n_reps <- 3
-n_folds <- 5
+n_folds <- 5 
 
 ## set resampling strategy for benchmarking:
 rdesc_bm <- makeResampleDesc(predict = "both", 
@@ -372,6 +366,7 @@ bmr_train <- benchmark(
   measures = list(mcc_train, mcc,
                   auc_train, auc,
                   f1_train, f1,
+                  bac_train, bac,
                   acc_train, acc,
                   timetrain, timepredict)
 )
@@ -379,23 +374,14 @@ toc()
 
 parallelMap::parallelStop()
 
-
 bmr_train
-plotBMRBoxplots(bmr_train, measure = mcc_train)
-
-## [[here]] still debug
-as.data.frame(bmr_train)
-class(bmr_train)
-mlr:::as.data.frame.BenchmarkResult
-getBMRPerformances(bmr_train)
-mlr::getBMRPerformances
-## seems like I can only get test measures, not training measures?
+plotBMRBoxplots(bmr_train)
 
 plotBMRBoxplots_cust <- function(bmr, measure_mlr, measure_name, measure_longname) {
   plotBMRBoxplots(bmr, 
                   measure = measure_mlr, 
                   style = "violin",
-                  pretty.names = FALSE) +
+                  pretty.names = TRUE) +
     aes(fill = learner.id) + geom_point(alpha = .5) +
     labs(
       title = paste0(measure_longname, " (", measure_name, ") of ", n_reps, "x repeated ",
@@ -444,6 +430,7 @@ bmr_traineval <- benchmark(
   measures = list(mcc,
                   auc,
                   f1,
+                  bac,
                   acc,
                   timetrain, timepredict)
 )
@@ -483,9 +470,8 @@ tune_results_glmnet_interact <- tuneParams(
   task = task_attrition_interact_mm, resampling = rdesc, measures = tune_measures, control = ctrl,
   par.set = makeParamSet(
     makeNumericParam("alpha", lower = 0, upper = 1),
-    makeIntegerParam("s", lower = 0, upper = 1000),
-    makeIntegerParam("nlambda", lower = 50, upper = 500),
-    makeLogicalParam("standardize")
+    makeLogicalParam("standardize", default = TRUE, tunable = FALSE),
+    makeLogicalParam("intercept")
   )
 )
 toc()
