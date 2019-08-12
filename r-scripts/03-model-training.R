@@ -506,8 +506,84 @@ plotBMRBoxplots_cust(bmr_train_interact, mcc, "MCC", "Matthew's Correlation Coef
 plotBMRBoxplots_cust(bmr_train_interact, auc, "AUC", "Area under the ROC curve")
 
 
+## ========================================================================= ##
+## inspect best model using iml package
+## ========================================================================= ##
+
+library(iml)
+
+## take sample for quicker model exploration:
+set.seed(442)
+dat_iml <- dat_model_mm %>% sample_n(500)
+
+## create a predictor container(s):
+create_predictor <- function(classif_name) {
+  ret <- Predictor$new(
+    model = getBMRModels(bmr_traineval)$task_attrition_basic_eval[[classif_name]][[1]],
+    data = dat_iml %>% select(-varnames_target),  y = dat_iml[varnames_target]
+  )
+  return(ret)
+}
+predictor_logreg <- create_predictor("classif.logreg")
+predictor_glmnet <- create_predictor("classif.glmnet")
+predictor_ranger <- create_predictor("classif.ranger")
+predictor_glmboost <- create_predictor("classif.glmboost")
+predictor_xgboost <- create_predictor("classif.xgboost")
+predictor_nnet <- create_predictor("classif.nnet")
 
 
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+## feature importance: main effects and interactions
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+
+## most important features:
+imp_logreg <- FeatureImp$new(predictor_logreg, loss = "ce")
+plot(imp_logreg)
+imp_glmboost <- FeatureImp$new(predictor_glmboost, loss = "ce")
+plot(imp_glmboost)
+imp_ranger <- FeatureImp$new(predictor_ranger, loss = "ce")
+plot(imp_ranger)
+imp_nnet <- FeatureImp$new(predictor_nnet, loss = "ce")
+plot(imp_nnet)
+
+## [[todo]]
+## * get most important features
+## * do ice plots for most important features
+
+
+
+interact_glmboost <- Interaction$new(predictor_glmboost)
+plot(interact_glmboost)
+
+interact_ranger <- Interaction$new(predictor_ranger)
+plot(interact_ranger)
+
+interact_nnet <- Interaction$new(predictor_nnet)
+plot(interact_nnet)
+
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+## feature effects (with iml)
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+
+# # ## accumulated local effects (ALE) for specific feature:
+# # # (similar to partial dependence plots):
+# effs <- FeatureEffect$new(predictor, feature = "Age")
+# plot(effs)
+
+## "choose" a standard predictor to be used below:
+#predictor <- predictor_ranger
+#predictor <- predictor_xgboost
+predictor <- predictor_glmboost
+
+## partial dependence plot with ice plot:
+effs <- FeatureEffect$new(predictor, feature = "OverTimeYes", method = "pdp+ice")
+plot(effs)
+
+effs <- FeatureEffect$new(predictor, feature = "MonthlyIncome", method = "pdp+ice")
+plot(effs)
+
+
+dat_iml %>% names()
 
 ## next steps:
 ## * (done) re-estimate on complete training set
