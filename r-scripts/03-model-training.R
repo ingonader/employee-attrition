@@ -87,7 +87,6 @@ create_mm_data <- function(dat, interaction = NA) {
 }
 
 dat_model_mm <- create_mm_data(dat_model)
-# dat_model_mm <- dat_model  ## debug
 
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
 ## define tasks
@@ -121,7 +120,7 @@ rdesc <- makeResampleDesc(predict = "both",
 
 
 ## parameters for parameter tuning:
-n_maxit <- 3 ## 10 currently; use more (about 50) in final estimation.
+n_maxit <- 50 ## 10 currently; use more (about 50) in final estimation.
 ctrl <- makeTuneControlRandom(maxit = n_maxit)  
 tune_measures <- list(mcc, auc, f1, acc, mmce, timetrain, timepredict)
 
@@ -346,6 +345,7 @@ lrns_tuned <- list(
 ## create training aggregation measures:
 mcc_train <- setAggregation(mcc, train.mean)
 mcc_train[["id"]] <- "mcc_train"
+#mcc_train[["properties"]] 
 auc_train <- setAggregation(auc, train.mean)
 auc_train[["id"]] <- "auc_train"
 f1_train <- setAggregation(f1, train.mean)
@@ -355,10 +355,11 @@ acc_train[["id"]] <- "acc_train"
 mmce_train <- setAggregation(mmce, train.mean)
 mmce_train[["id"]] <- "mmce_train"
 
-mlr::mcc %>% str()
+mcc %>% str()
+mcc_train %>% str()
 
 n_reps <- 3
-n_folds <- 2 ## debug; should be 5 (at least)
+n_folds <- 5
 
 ## set resampling strategy for benchmarking:
 rdesc_bm <- makeResampleDesc(predict = "both", 
@@ -373,12 +374,6 @@ bmr_train <- benchmark(
                   f1_train, f1,
                   acc_train, acc,
                   timetrain, timepredict)
-  # measures = list(mcc,
-  #                 auc,
-  #                 f1,
-  #                 acc,
-  #                 timetrain, timepredict)
-  
 )
 toc()
 
@@ -386,51 +381,15 @@ parallelMap::parallelStop()
 
 
 bmr_train
-plotBMRBoxplots(bmr_train)
-## Error: `data` must be uniquely named but has duplicate columns
-## Suspected reason: using measures for training and testing!
-## Confirmed reason: when just setting the aggregation measure (for training set), id stays the same;
-## that conflicts with converting the data to a data.frame (will result in identical column names,
-## leading to problems in plotBMRBoxplots() function)
+plotBMRBoxplots(bmr_train, measure = mcc_train)
 
-## debug:
-names(bmr_train)
-str(bmr_train, max.level = 2)
-str(bmr_train[["measures"]])
-str(bmr_train[["measures"]][1:2])
-
-# identical(
-#   bmr_train[["measures"]][[1]],
-#   bmr_train[["measures"]][[2]]
-# )
-
-bmr_tmp <- bmr_train
-bmr_tmp[["measures"]] <- map(bmr_tmp[["measures"]], function(i) {
-   if (substr(i[["aggr"]], 1, 5)[[1]] == "train") {
-     i[["id"]] <- paste0(i[["id"]], "_train")
-     i[["name"]] <- paste0(i[["name"]], " (train)")
-   } 
-  return(i)
-})
-plotBMRBoxplots(bmr_tmp)
-## renaming doesn't seem to work; get rid of training?
-
-bmr_tmp <- bmr_train
-bmr_tmp[["measures"]] <- bmr_tmp[["measures"]][c(2, 4)]
-plotBMRBoxplots(bmr_tmp)
-## getting rid in "measures" also doesn't work... get rid somewhere else?
-
-
-
-as.data.frame(bmr_train) %>% head()
-## [[here]]!!! 
-
-## check [["results"]], and see if measure names here are a problem!
-bmr_tmp <- bmr_train
-str(bmr_tmp[["results"]], max.level = 2)
-
-
-## debug end; 
+## [[here]] still debug
+as.data.frame(bmr_train)
+class(bmr_train)
+mlr:::as.data.frame.BenchmarkResult
+getBMRPerformances(bmr_train)
+mlr::getBMRPerformances
+## seems like I can only get test measures, not training measures?
 
 plotBMRBoxplots_cust <- function(bmr, measure_mlr, measure_name, measure_longname) {
   plotBMRBoxplots(bmr, 
@@ -447,6 +406,7 @@ plotBMRBoxplots_cust <- function(bmr, measure_mlr, measure_name, measure_longnam
     ) +
     theme(axis.text.x = element_text(angle = 30, hjust = 1))
 }
+
 plotBMRBoxplots_cust(bmr_train, auc, "AUC", "Area under the ROC curve")
 plotBMRBoxplots_cust(bmr_train, mcc, "MCC", "Matthew's Correlation Coefficient")
 
