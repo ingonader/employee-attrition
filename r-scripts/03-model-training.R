@@ -375,7 +375,14 @@ toc()
 
 parallelMap::parallelStop()
 
+## tabluar results:
 bmr_train
+bmr_train_summary <- print(bmr_train)
+bmr_train_summary %>% select(matches("learner|mcc"))
+bmr_train_summary %>% select(matches("learner|bac"))
+bmr_train_summary %>% select(matches("learner|auc"))
+bmr_train_summary %>% select(matches("learner|acc"))
+
 plotBMRBoxplots(bmr_train)
 
 plotBMRBoxplots_cust <- function(bmr, measure_mlr, measure_name, measure_longname) {
@@ -394,8 +401,8 @@ plotBMRBoxplots_cust <- function(bmr, measure_mlr, measure_name, measure_longnam
     theme(axis.text.x = element_text(angle = 30, hjust = 1))
 }
 
-plotBMRBoxplots_cust(bmr_train, auc, "AUC", "Area under the ROC curve")
 plotBMRBoxplots_cust(bmr_train, mcc, "MCC", "Matthew's Correlation Coefficient")
+plotBMRBoxplots_cust(bmr_train, auc, "AUC", "Area under the ROC curve")
 
 ## ========================================================================= ##
 ## refit all learners on full training set and evaluate on eval set
@@ -409,6 +416,9 @@ dat_modeleval_mm <- create_mm_data(dat_modeleval)
 
 idx_train <- 1:nrow(dat_train)
 idx_eval <- nrow(dat_train) + (1:nrow(dat_eval))
+
+## set random seed, also valid for parallel execution:
+set.seed(427121, "L'Ecuyer")
 
 ## create a task: (= data + meta-information)
 task_attrition_basic_mm_eval <- makeClassifTask(
@@ -437,9 +447,60 @@ bmr_traineval <- benchmark(
 )
 toc()
 
+## tabluar results:
+bmr_traineval_summary <- print(bmr_traineval)
+bmr_traineval_summary %>% select(matches("learner|mcc"))
+bmr_traineval_summary %>% select(matches("learner|bac"))
+bmr_traineval_summary %>% select(matches("learner|auc"))
+bmr_traineval_summary %>% select(matches("learner|acc"))
+bmr_traineval_summary %>% select(matches("learner|mcc|bac|auc"))
+
 plotBMRBoxplots(bmr_traineval)
 
 save.image(file = file.path(path_tmp, "03-model-training___dump01.Rdata"))
+
+## ========================================================================= ##
+## refit subset of learners on data with factors
+## ========================================================================= ##
+
+## set random seed, also valid for parallel execution:
+set.seed(427121, "L'Ecuyer")
+
+## create a task: (= data + meta-information)
+task_attrition_basic_fact_eval <- makeClassifTask(
+  id = "task_attrition_basic_eval",
+  data = dat_modeleval %>% as.data.frame(),
+  target = varnames_target
+  #fixup.data = "no", check.data = FALSE, ## for createDummyFeatures to work.
+)
+
+## and estimate performance on an identical test set:
+rdesc_bmf <- makeFixedHoldoutInstance(train.inds = idx_train,
+                                      test.inds = idx_eval,
+                                      size = length(c(idx_train, idx_eval)))
+rdesc_bmf
+
+lrns_tuned_fact <- list(
+  makeLearner("classif.logreg", predict.type = "prob"),
+  makeLearner("classif.glmboost", predict.type = "prob", par.vals = tune_results_glmboost$x),
+  makeLearner("classif.nnet", predict.type = "prob", par.vals = tune_results_nnet$x)
+)
+
+## refit factor models on complete training data, validate on test data:
+tic("time: refit factor models on complete training data, validate on eval data")
+bmr_traineval_fact <- benchmark(
+  lrns_tuned_fact, task_attrition_basic_fact_eval, rdesc_bmf,
+  measures = list(mcc,
+                  auc,
+                  f1,
+                  bac,
+                  acc,
+                  timetrain, timepredict)
+)
+toc()
+
+bmr_traineval_fact
+plotBMRBoxplots(bmr_traineval_fact)
 
 
 ## ========================================================================= ##
