@@ -60,14 +60,14 @@ dat_all <- dat_raw
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ## 
 
 ## features to exclude:
-## EmployeeCount: constant, always 1
-## Over18: constant, always Y
-## StandardHours: constant at 80
+
 varnames_raw_exclude <- c(
-  "EmployeeCount",
-  "Over18",
-  "StandardHours",
-  "EmployeeNumber"
+  "EmployeeCount",  ## EmployeeCount: constant, always 1
+  "Over18",         ## Over18: constant, always Y
+  "StandardHours",  ## StandardHours: constant at 80
+  "EmployeeNumber", ## not a useful feature, arbitrary
+  "JobLevel",       ## highly correlated with MonthlyIncome and TotalWorkingYears
+  "Department"      ## highly correlated with JobRole, but not as granular
 )
 
 ## drop constant variables:
@@ -85,7 +85,7 @@ varnames_categorical <- union(
     "StockOptionLevel",
     "RelationshipSatisfaction",
     "JobSatisfaction",
-    "JobLevel",
+    #"JobLevel",
     "JobInvolvement",
     "EnvironmentSatisfaction",
     "Education"

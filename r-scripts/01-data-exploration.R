@@ -171,3 +171,12 @@ cormat_long %>% filter(Var1 != Var2, abs(value) > .8) %>% arrange(value)
 ## JobRole highly correlated wiht Department
 
 ## [[?]] DailyRate not correlated with MonthlyIncome?
+
+table(dat_all$JobRole)
+table(dat_all$Department)
+table(dat_all[c("JobRole", "Department")])
+
+## exclude:
+## * JobLevel: highly correlated with MonthlyIncome and TotalWorkingYears
+## * Department: highly correlated with JobRole, but not as granular
+
