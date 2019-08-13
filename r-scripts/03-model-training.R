@@ -60,7 +60,8 @@ create_mm_data <- function(dat, interaction = NA) {
   if (is.na(interaction)) {
     formula_this <- paste0(
       varnames_target, " ~ ",
-      paste(varnames_features, collapse = " + ")
+      paste(varnames_features, collapse = " + "),
+      " - 1"
     )
   } 
   else {
@@ -68,7 +69,7 @@ create_mm_data <- function(dat, interaction = NA) {
       varnames_target, " ~ ", 
       "(", 
       paste(varnames_features, collapse = " + "),
-      ") ^ ", interaction
+      ") ^ ", interaction, " - 1"
     )
   }
 

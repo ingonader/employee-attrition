@@ -157,7 +157,7 @@ ggplot(data = cormat_long, aes(Var2, Var1, fill = value))+
   geom_tile(color = "white")+
   scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
                        midpoint = 0, limit = c(-1,1), space = "Lab", 
-                       name="Pearson\nCorrelation") +
+                       name="Correlation") +
   theme_minimal()+ 
   theme(axis.text.x = element_text(angle = 45, vjust = 1, 
                                    size = 12, hjust = 1))+

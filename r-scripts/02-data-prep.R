@@ -66,7 +66,8 @@ dat_all <- dat_raw
 varnames_raw_exclude <- c(
   "EmployeeCount",
   "Over18",
-  "StandardHours"
+  "StandardHours",
+  "EmployeeNumber"
 )
 
 ## drop constant variables:
