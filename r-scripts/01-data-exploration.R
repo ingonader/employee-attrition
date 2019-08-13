@@ -12,6 +12,7 @@
 
 path_raw <- "."  ## current path of project
 path_dat <- file.path(path_raw, "data")
+path_img <- file.path(path_raw, "img")
 
 options(tibble.width = Inf)
 
@@ -24,6 +25,20 @@ library(readr)
 library(magrittr)
 library(purrr)
 library(ggplot2)
+
+## ========================================================================= ##
+## function definitions
+## ========================================================================= ##
+
+#' customized ggsave function to avoid retyping all parameters:
+#'
+#' @param fname filename to save in \code{path_img} (defined globally)
+#' @param ... 
+ggsave_cust <- function(fname, p = last_plot(), width = 8, height = 4, dpi = 300, ...) {
+  ggsave(filename = file.path(path_img, fname), 
+         plot = p,
+         width = width, height = height, dpi = dpi, ...)
+}
 
 ## ========================================================================= ##
 ## load data
@@ -53,6 +68,13 @@ dat_all <- dat_raw
 ## ========================================================================= ##
 
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ## 
+## general dataset description
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ## 
+
+dim(dat_all)
+
+
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ## 
 ## check missing values
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ## 
 
@@ -73,6 +95,13 @@ varnames_raw_categorical <- names(dat_raw)[sapply(dat_raw, function(i) is.charac
 
 ## check distribution of target variable:
 table(dat_raw[["Attrition"]]) %>% prop.table()
+
+ggplot(dat_raw, aes(Attrition)) + 
+  geom_bar(aes(y = (..count..)/sum(..count..))) +
+  labs(
+    y = "Percentage"
+  )
+ggsave_cust("attrition-barplot.jpg", width = 4, height = 4)
 
 ## ------------------------------------------------------------------------ ##
 ## check categorical variables
@@ -150,6 +179,8 @@ cormat_hetcor <- polycor::hetcor(as.data.frame(dat_all), std.err = FALSE, use = 
 cormat <- cormat_hetcor[["correlations"]]
 cormat
 
+cormat[lower.tri(cormat)] <- NA
+
 cormat_long <- reshape2::melt(cormat, na.rm = TRUE)
 
 ## heatmap
@@ -160,11 +191,14 @@ ggplot(data = cormat_long, aes(Var2, Var1, fill = value))+
                        name="Correlation") +
   theme_minimal()+ 
   theme(axis.text.x = element_text(angle = 45, vjust = 1, 
-                                   size = 12, hjust = 1))+
+                                   hjust = 1))+
   coord_fixed()
+ggsave_cust("cormat.jpg", width = 8, height = 8)
 
 ## check high correlations:
-cormat_long %>% filter(Var1 != Var2, abs(value) > .8) %>% arrange(value)
+cormat_long %>% 
+  filter(Var1 != Var2, abs(value) > .8) %>% 
+  arrange(value)
 
 ## JobLevel highly correlated with MonthlyIncome
 ## JobLevel highly correlated with TotalWorkingYears
