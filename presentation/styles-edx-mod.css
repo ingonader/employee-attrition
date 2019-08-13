@@ -1,0 +1,268 @@
+/* *************************************************************** */
+/* CSS style file to cusotmize ioslides presentation in R Markdown */
+/* Template for *um-style presentations                            */
+/* Author: Ingo Nader                                              */
+/* Date: Oct 2016                                                  */
+/* *************************************************************** */
+
+
+/* =============================================================== */
+/* Normal Text */
+/* =============================================================== */
+
+/* justify text: */
+body {
+  text-align: left
+}
+
+/* standard presentation font (when using smaller: true ?) */
+article {
+    font-family: "Open Sans", "Arial", "Lucida Grande", "Gill Sans", "Gill Sans MT", Calibri, sans-serif;
+    font-size: 17pt;
+}
+
+/* standard presentation font (when using smaller: true ?) */
+.smaller {
+    font-family: "Open Sans", "Arial", "Lucida Grande", "Gill Sans", "Gill Sans MT", Calibri, sans-serif;
+}
+
+.tiny {
+    font-family: "Open Sans", "Arial", "Lucida Grande", "Gill Sans", "Gill Sans MT", Calibri, sans-serif;
+    font-size: 60%;
+}
+
+/* rotate text; usage: id="rot" in htmltag  */
+/* (not necessary, as style="transform: rotate(90deg)" can be used) */ 
+#rot
+{
+   -webkit-transform: rotate(-90deg); /* safari */
+   -moz-transform: rotate(-90deg);    /* firefox */
+   -ms-transform: rotate(-90deg); /* internet explorer */
+   -o-transform: rotate(-90deg); /* opera */
+   filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=3); /* internet explorer */
+   /* width: 100px; */
+}
+
+
+/* =============================================================== */
+/* Bullet Points and Enumerations */
+/* =============================================================== */
+
+/* unordered list, first level */
+ul > li:before {
+    /* content: '*'; /* '\2022';  '*'; */
+    /* content: '\220e';  /* qed. (tombstone) */
+    /* content: '\2598'; /* quadrant upper left */
+    /* content: '\259d'; /* quadrant upper right */
+    /* content: '\259a'; /* quadrant upper left and lower right */
+    /* content: '\25a0';  /* black square */
+    content: '\25aa'; /* small black square */
+    color: "black";
+    font-weight: bold;
+    /* font-size: 130%; */
+    /* margin-left: -0.8em; */
+    /* margin-top: -0.3rem; /*needed when using bigger font, except with asterisk */
+}
+
+/* unordered list, second and further level */
+ul li ul li:before {
+    content: '\25E6';
+    font-weight: 600;
+    font-size: 100%;
+    margin-left: -0.8em;
+    margin-top: 0em;
+}
+
+
+/* =============================================================== */
+/* Titles and Headers */
+/* =============================================================== */
+
+/* header colors */
+.title-slide hgroup h1 {
+  font-family: "Open Sans", "Arial", "Lucida Grande", "Gill Sans", "Gill Sans MT", Calibri, sans-serif;
+  color: #B22222;
+  text-align: center;
+}
+
+.title-slide hgroup p {
+  font-family: "Open Sans", "Arial", "Lucida Grande", "Gill Sans", "Gill Sans MT", Calibri, sans-serif;
+}
+
+.title-slide hgroup {
+  text-align: center;
+}
+
+h1, h2, h3 {
+  font-family: "Open Sans", "Arial", "Lucida Grande", "Gill Sans", "Gill Sans MT", Calibri, sans-serif;
+  color: #B22222;
+}
+
+
+
+/* =============================================================== */
+/* Logo position in title slide and on slides */
+/* =============================================================== */
+
+/* gdbar size (that contains logo) on title page */
+/* needs to have greater height than logo image, other stuff is irrelevant */
+.gdbar {
+  position:absolute !important;
+  top: 50px !important; left: auto; right: 0px !important; width: 0px !important;
+  height: 500px !important;  /* modify if logo is larger than this in height */
+}
+
+/* logo size on title page */
+.gdbar img {
+  position: absolute; 
+  top: 0px;
+  left: 50px;
+  width: 154px !important;
+  height: 127px !important;
+}
+
+/* logo size on slides */
+slides > slide:not(.nobackground):before {
+  width: 77px; height: 64px; /* modify width and height (twice) */
+  background-size: 77px 64px;
+  position: absolute; left: auto;
+  right: -30px;  /* modify position */
+  top: 10px;
+}
+
+
+/* =============================================================== */
+/* HTML Tables */
+/* =============================================================== */
+
+/* table formating: header */
+table.rmdtable th { 
+  font-size: 65%;
+  line-height: 1.0;
+  padding: 0.2em 0.2em;
+  color: black;
+  background: #888888;
+  border-bottom: solid 1px #797979;
+  border-top: solid 1px #797979;
+}
+
+/* table formatting: rows; */
+table.rmdtable tr td {
+  font-size: 55%;
+  line-height: 1.0;
+  padding: 0.2em 0.2em;
+}
+
+
+/* =============================================================== */
+/* LaTeX Formulas */
+/* =============================================================== */
+
+/* font for latex formulas: */
+/* .MathJax * { */
+/* font-size: 24px; */
+/*} */  
+
+/* does not work for font-family; use <script> in html/Rmd document instead */
+
+
+/* =============================================================== */
+/* Code Formatting */
+/* =============================================================== */
+
+/* overall style of code and results (not inline in text) */
+pre {
+    font-size: 16px;
+    line-height: 20px;
+    /* font-family: Courier, "Courier New", "Lucida Sans Typewriter", Lucida; */
+    font-family: Consolas, Courier, "Courier New", "Lucida Sans Typewriter", Lucida;
+    color: darkred;
+    left: -5px;
+    padding-left: 10px;
+    margin-top: -1.5em;
+    /* width: 95%; */
+    /*padding-right: -100px;*/
+}
+
+/* code inline with text */
+code {
+    /* font-family: Courier, "Courier New", "Lucida Sans Typewriter", Lucida; */
+    font-family: Consolas, Courier, "Courier New", "Lucida Sans Typewriter", Lucida;
+    box-sizing: border-box;
+    border-style: solid;
+    border-width: 1px;
+    border-radius: 0.15em;
+    border-color: #d0d0d0;
+    padding-left: 0.1em;
+    padding-right: 0.1em;
+    color: #505050;
+    background-color: #f1f1f1;
+} 
+
+/* code style (input and comments, not results) */
+.prettyprint {
+    border-radius: 0.3em;
+    /* background-color: #ffffff; */
+    /* font-size: 50%; */
+    /* font-size: 16px; */
+    /* line-height: 18px; */
+}
+
+/* comment style */
+.prettyprint .com {
+    /* color: #808080; */
+    /* color: #101010; */ /* almost black */
+    /*color: #019055; */  /* dark green */
+    color: #01824c;  /* even darker green */
+    font-style: normal;
+    /* font-size: 50%; */
+}
+
+/* strings in r code */
+.prettyprint .str {
+    color: #246dc5;  /* dark blue */
+}
+
+/* symbols like %>% in r code 
+.prettyprint .pun {
+    color: #9027a0;  /* dark magenta 
+}
+*/
+
+/* smaller code on {.smaller} slides */
+article.smaller pre {
+    font-size: 13px;
+    line-height: 15px;
+    letter-spacing: 0;
+}
+
+
+/* =============================================================== */
+/* various stuff */
+/* =============================================================== */
+
+/* for slides with red background (only works for normal text, not whole slide) {.bgred} */
+.bgred,
+.bgred div,
+.bgred body,
+.bgred .article,
+.bgred article,
+.bgred .prettyprint,
+.bgred .h1,
+.bgred .h2,
+.bgred .h3,
+.bgred backdrop,
+.bgred .backdrop,
+.bgred .slide,
+.bgred slide,
+.bgred slides > slide.backdrop {   
+  background-color:#ffaaaa;
+  background:#ffaaaa;
+}
+
+/*slides > slide.backdrop {   */
+/*  background-color:#ffaaaa;   */
+/*  background:#ffaaaa;   */
+/*}   */
+
+
