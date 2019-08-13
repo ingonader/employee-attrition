@@ -563,7 +563,6 @@ bmr_train_interact <- benchmark(
 toc()
 
 plotBMRBoxplots(bmr_train_interact)
-
 plotBMRBoxplots_cust(bmr_train_interact, mcc, "MCC", "Matthew's Correlation Coefficient")
 plotBMRBoxplots_cust(bmr_train_interact, auc, "AUC", "Area under the ROC curve")
 
@@ -576,49 +575,94 @@ library(iml)
 
 ## take sample for quicker model exploration:
 set.seed(442)
-dat_iml <- dat_model_mm %>% sample_n(500)
+dat_iml <- dat_model_mm # %>% sample_n(500)
+set.seed(442)
+dat_iml_fact <- dat_model # %>% sample_n(500)
 
 ## create a predictor container(s):
-create_predictor <- function(classif_name) {
+create_predictor <- function(classif_name, bmr_obj = bmr_traineval, task = 1, data = dat_iml) {
   ret <- Predictor$new(
-    model = getBMRModels(bmr_traineval)$task_attrition_basic_eval[[classif_name]][[1]],
-    data = dat_iml %>% select(-varnames_target),  y = dat_iml[varnames_target]
+    model = getBMRModels(bmr_obj)[[task]][[classif_name]][[1]],
+    data = data %>% select(-varnames_target),  y = dat_iml[varnames_target]
   )
   return(ret)
 }
 predictor_logreg <- create_predictor("classif.logreg")
-predictor_glmnet <- create_predictor("classif.glmnet")
-predictor_ranger <- create_predictor("classif.ranger")
+# predictor_glmnet <- create_predictor("classif.glmnet")
+# predictor_ranger <- create_predictor("classif.ranger")
 predictor_glmboost <- create_predictor("classif.glmboost")
 predictor_xgboost <- create_predictor("classif.xgboost")
 predictor_nnet <- create_predictor("classif.nnet")
 
+predictor_logreg_fact <- create_predictor("classif.logreg", bmr_obj = bmr_traineval_fact, 
+                                            data = dat_iml_fact)
+predictor_glmboost_fact <- create_predictor("classif.glmboost", bmr_obj = bmr_traineval_fact, 
+                                            data = dat_iml_fact)
+predictor_nnet_fact <- create_predictor("classif.nnet", bmr_obj = bmr_traineval_fact, 
+                                        data = dat_iml_fact)
 
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-## feature importance: main effects and interactions
+## feature importance: main effects
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
 
 ## most important features:
 imp_logreg <- FeatureImp$new(predictor_logreg, loss = "ce")
 plot(imp_logreg)
+imp_logreg_fact <- FeatureImp$new(predictor_logreg_fact, loss = "ce")
+plot(imp_logreg_fact)
+
 imp_glmboost <- FeatureImp$new(predictor_glmboost, loss = "ce")
 plot(imp_glmboost)
-imp_ranger <- FeatureImp$new(predictor_ranger, loss = "ce")
-plot(imp_ranger)
+imp_glmboost_fact <- FeatureImp$new(predictor_glmboost_fact, loss = "ce")
+plot(imp_glmboost_fact)
+
 imp_nnet <- FeatureImp$new(predictor_nnet, loss = "ce")
 plot(imp_nnet)
+imp_nnet_fact <- FeatureImp$new(predictor_nnet_fact, loss = "ce")
+plot(imp_nnet_fact)
 
-## [[todo]]
-## * get most important features
-## * do ice plots for most important features
 
+# imp_xgboost <- FeatureImp$new(predictor_xgboost, loss = "ce")
+# plot(imp_xgboost)
+# imp_ranger <- FeatureImp$new(predictor_ranger, loss = "ce")
+# plot(imp_ranger)
+
+## extract top-n most important features:
+get_imp_topn <- function(imp, n_top = 15) {
+  ret <- imp$clone()
+  ret$results <- arrange(imp$results, desc(importance.05)) %>% head(n = n_top)
+  return(ret)
+}
+get_imp_topn(imp_logreg_fact, 15) %>% plot()
+get_imp_topn(imp_glmboost_fact, 15) %>% plot()
+get_imp_topn(imp_nnet_fact, 15) %>% plot()
+
+n_intersect <- 15
+get_imp_topn(imp_logreg_fact, n_intersect)$results$feature %>% 
+  intersect(get_imp_topn(imp_glmboost_fact, n_intersect)$results$feature) %>%
+  intersect(get_imp_topn(imp_nnet_fact, n_intersect)$results$feature)
+
+
+imp_glmboost_fact$results %>% arrange(desc(importance.05))
+
+
+
+
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+## feature importance: interactions
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
 
 
 interact_glmboost <- Interaction$new(predictor_glmboost)
-plot(interact_glmboost)
+interact_glmboost %>% str()
+
+interact_glmboost_fact <- Interaction$new(predictor_glmboost_fact)
+interact_glmboost_fact %>% str()
+plot(interact_glmboost_fact)
 
 interact_ranger <- Interaction$new(predictor_ranger)
 plot(interact_ranger)
+## [[?]][[better plot]]
 
 interact_nnet <- Interaction$new(predictor_nnet)
 plot(interact_nnet)
@@ -638,11 +682,20 @@ plot(interact_nnet)
 predictor <- predictor_glmboost
 
 ## partial dependence plot with ice plot:
-effs <- FeatureEffect$new(predictor, feature = "OverTimeYes", method = "pdp+ice")
+effs <- FeatureEffect$new(predictor_glmboost, feature = "OverTimeYes", method = "pdp+ice")
+plot(effs)
+
+effs <- FeatureEffect$new(predictor_glmboost_fact, feature = "OverTime", method = "pdp+ice")
 plot(effs)
 
 effs <- FeatureEffect$new(predictor, feature = "MonthlyIncome", method = "pdp+ice")
 plot(effs)
+
+effs <- FeatureEffect$new(predictor_glmboost_fact, feature = "OverTime", method = "pdp+ice")
+plot(effs)
+effs <- FeatureEffect$new(predictor_glmboost_fact, feature = "Age", method = "pdp+ice")
+plot(effs)
+
 
 
 dat_iml %>% names()
