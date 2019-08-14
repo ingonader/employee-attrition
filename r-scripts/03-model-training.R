@@ -503,69 +503,6 @@ bmr_traineval_fact
 plotBMRBoxplots(bmr_traineval_fact)
 
 
-## ========================================================================= ##
-## Refit linear ML models with interactions
-## ========================================================================= ##
-
-dat_model_interact_mm <- create_mm_data(dat_model, interaction = 2)
-
-## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-## define tasks
-## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-
-## create a task: (= data + meta-information)
-task_attrition_interact_mm <- makeClassifTask(id = "task_attrition_interact",
-                                           data = dat_model_interact_mm,
-                                           target = varnames_target
-                                           #fixup.data = "no", check.data = FALSE, ## for createDummyFeatures to work.
-)
-
-## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-## create tuned single learners with random parameter search and CV
-## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-## (models to be refitted later on training data with tuned parameters)
-
-## classif.glmnet
-tic("time: classif.glmnet")
-tune_results_glmnet_interact <- tuneParams(
-  makeLearner("classif.glmnet", predict.type = "prob"),
-  task = task_attrition_interact_mm, resampling = rdesc, measures = tune_measures, control = ctrl,
-  par.set = makeParamSet(
-    makeNumericParam("alpha", lower = 0, upper = 1),
-    makeLogicalParam("standardize", default = TRUE, tunable = FALSE),
-    makeLogicalParam("intercept")
-  )
-)
-toc()
-
-## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-## refit with tuned parameters (with CV)
-## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-
-## set random seed, also valid for parallel execution:
-set.seed(427121, "L'Ecuyer")
-
-lrns_tuned_interact <- list(
-  makeLearner("classif.glmnet", predict.type = "prob", 
-              id = "Elastic Net\nRegression", par.vals = tune_results_glmnet_interact$x)
-)
-
-## refit tuned models on complete training data:
-tic("time: refit tuned models on training data")
-bmr_train_interact <- benchmark(
-  lrns_tuned_interact, task_attrition_interact_mm, rdesc_bm,
-  measures = list(mcc,
-                  auc, #rmse.train.mean,
-                  f1, #mae.train.mean,
-                  acc, #rsq.train.mean,
-                  timetrain, timepredict)
-)
-toc()
-
-plotBMRBoxplots(bmr_train_interact)
-plotBMRBoxplots_cust(bmr_train_interact, mcc, "MCC", "Matthew's Correlation Coefficient")
-plotBMRBoxplots_cust(bmr_train_interact, auc, "AUC", "Area under the ROC curve")
-
 
 ## ========================================================================= ##
 ## inspect best model using iml package
@@ -705,6 +642,7 @@ dat_iml %>% names()
 ## * (done) benchmark on validation set
 ## * (done) try refitting linear models (only) with interactions and feature selection
 ## * (done) try stepwise glm with interactions with forward selection, starting at full model
+## * cleanup and move interaction stuff to different file
 ## * choose best model of each class, quantify performance
 ## * take best model and inspect it:
 ##   * variable importance
