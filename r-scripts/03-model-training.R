@@ -442,6 +442,9 @@ bmr_train_summary %>% select(matches("learner|bac"))
 bmr_train_summary %>% select(matches("learner|auc"))
 bmr_train_summary %>% select(matches("learner|acc"))
 
+bmr_train_summary %>% select(matches("learner|mcc|bac|auc"))
+
+
 plotBMRBoxplots(bmr_train)
 
 plotBMRBoxplots_cust <- function(bmr, measure_mlr, measure_name, measure_longname) {
@@ -517,7 +520,13 @@ bmr_traineval_summary %>% select(matches("learner|mcc"))
 bmr_traineval_summary %>% select(matches("learner|bac"))
 bmr_traineval_summary %>% select(matches("learner|auc"))
 bmr_traineval_summary %>% select(matches("learner|acc"))
-bmr_traineval_summary %>% select(matches("learner|mcc|bac|auc"))
+
+bmr_traineval_summary_rnd <- bmr_traineval_summary %>% 
+  select(matches("learner|mcc|bac|auc"))
+bmr_traineval_summary_rnd[2:4] <- round(bmr_traineval_summary_rnd[2:4], 3)
+names(bmr_traineval_summary_rnd) <- names(bmr_traineval_summary_rnd) %>% 
+  stringr::str_replace("\\.mean", "")
+bmr_traineval_summary_rnd
 
 plotBMRBoxplots(bmr_traineval, measure = mcc)
 ggsave_cust("model-fit-mcc-eval.jpg", width = 5, height = 5)
