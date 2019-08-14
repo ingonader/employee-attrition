@@ -18,6 +18,7 @@ source("./r-scripts/02-data-prep.R")
 
 library(mlr)
 library(tictoc)
+library(scales)
 
 ## ========================================================================= ##
 ## define additional global variables
@@ -61,7 +62,51 @@ varnames_features <- setdiff(
 varnames_model <- union(varnames_target, varnames_features)
 
 ## select subset of data:
-dat_model <- dat_train[varnames_model]
+dat_model_imbal <- dat_train[varnames_model]
+
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+## SMOTE upsampling
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+
+library(DMwR)
+
+set.seed(9560)
+formula_smote <- paste0(varnames_target, " ~ .") %>% as.formula()
+dat_model <- SMOTE(formula_smote, 
+                   data  = dat_model_imbal %>% as.data.frame())                         
+dim(dat_model_imbal)
+dim(dat_model)
+dat_model[[varnames_target]] %>% table() %>% prop.table()
+
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+## explore target variable distribution 
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+
+dat_train[[varnames_target]] %>% table() %>% prop.table() %>% data.frame("dataset" = "train")
+dat_eval[[varnames_target]] %>% table() %>% prop.table() %>% data.frame("dataset" = "eval")
+dat_test[[varnames_target]] %>% table() %>% prop.table() %>% data.frame("dataset" = "test")
+
+bind_rows(
+  data.frame(dat_train, "dataset" = "train", stringsAsFactors = FALSE),
+  data.frame(dat_eval, "dataset" = "eval", stringsAsFactors = FALSE),
+  data.frame(dat_test, "dataset" = "test", stringsAsFactors = FALSE)
+) %>% ggplot(aes(Attrition)) +
+  geom_bar() +
+  #geom_bar(aes(y = (..count..)/sum(..count..))) +
+  facet_wrap(vars(forcats::fct_relevel(dataset, "train", "eval")), nrow = 1) #+
+  #scale_y_continuous(labels = percent_format())
+ggsave_cust("train-eval-test-no-upsampling.jpg", height = 4, width = 4)
+
+bind_rows(
+  data.frame(dat_model, "dataset" = "train", stringsAsFactors = FALSE),
+  data.frame(dat_eval, "dataset" = "eval", stringsAsFactors = FALSE),
+  data.frame(dat_test, "dataset" = "test", stringsAsFactors = FALSE)
+) %>% ggplot(aes(Attrition)) +
+  geom_bar() +
+  facet_wrap(vars(forcats::fct_relevel(dataset, "train", "eval")), nrow = 1)
+ggsave_cust("train-eval-test-smote-upsampling.jpg", height = 4, width = 4)
+
+
 
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
 ## create model matrix (one-hot-encoding)
@@ -480,7 +525,7 @@ ggsave_cust("model-fit-mcc-eval.jpg", width = 5, height = 5)
 plotBMRBoxplots(bmr_traineval, measure = auc)
 ggsave_cust("model-fit-auc-eval.jpg", width = 5, height = 5)
 
-save.image(file = file.path(path_tmp, "03-model-training___dump01.Rdata"))
+# save.image(file = file.path(path_tmp, "03-model-training___dump01.Rdata"))
 
 ## ========================================================================= ##
 ## refit subset of learners on data with factors
@@ -661,6 +706,7 @@ plot(effs)
 effs <- FeatureEffect$new(predictor_glmboost_fact, feature = "Age", method = "pdp+ice")
 plot(effs)
 
+# save.image(file = file.path(path_tmp, "03-model-training___dump02a.Rdata"))
 
 
 dat_iml %>% names()
