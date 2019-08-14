@@ -5,6 +5,13 @@
 ## ignore data
 data/*.csv
 
+## ignore specific directories
+tmp/*
+
+## ignore specific files
+data-exploration-q-and-a.md
+outline.md
+
 # ############################################################### #
 # Created by RStudio
 # ############################################################### #
