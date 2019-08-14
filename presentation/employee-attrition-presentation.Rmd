@@ -123,7 +123,7 @@ Attrition:
 
 ## Dataset
 
-* $n = 1470$ employees and some of their attributes:
+* $n = 1470$ employees and some of their attributes (selection below):
 
 | Name | Description |
 |------|-------------|
@@ -208,6 +208,151 @@ knitr::include_graphics("../img/cormat.jpg")
 
 
 ## Features used in the model
+
+* Features used in the model:
+
+```r
+varnames_features
+```
+```
+ [1] "Age"                      "BusinessTravel"           "DailyRate"               
+ [4] "DistanceFromHome"         "Education"                "EducationField"          
+ [7] "EnvironmentSatisfaction"  "Gender"                   "HourlyRate"              
+[10] "JobInvolvement"           "JobRole"                  "JobSatisfaction"         
+[13] "MaritalStatus"            "MonthlyIncome"            "MonthlyRate"             
+[16] "NumCompaniesWorked"       "OverTime"                 "PercentSalaryHike"       
+[19] "PerformanceRating"        "RelationshipSatisfaction" "StockOptionLevel"        
+[22] "TotalWorkingYears"        "TrainingTimesLastYear"    "WorkLifeBalance"         
+[25] "YearsAtCompany"           "YearsInCurrentRole"       "YearsSinceLastPromotion" 
+[28] "YearsWithCurrManager"    
+```
+
+* Features excluded:
+    * features with no relevant information: `EmployeeNumber`
+    * constant features: `EmployeeCount`, `Over18`, `StandardHours`
+    * highly correlated features: `JobLevel`, `Department`
+
+## Categorical variables
+
+* Variable description did not provide scale level
+* hence, some features were assumed to be categorical and dummy-coded:
+
+```r
+varnames_convert_to_cat
+```
+```
+[1] "WorkLifeBalance"          "StockOptionLevel"         "RelationshipSatisfaction"
+[4] "JobSatisfaction"          "JobLevel"                 "JobInvolvement"          
+[7] "EnvironmentSatisfaction"  "Education" 
+```
+
+* all of them are in a range of `[1, 4]` or `[1, 5]`
+* No information about how the information was collected
+* Might be a Likert-Scale (ordinal or even interval scale)
+* But might also be totally unrelated options (nominal scale)
+* Assumed to be ordinal scale, just to be on the save side
+
+
+## Assumptions: Summary
+
+* Data on individual level and not aggregated  
+  (even though there is a variable `EmployeeCount`)
+* Some variables were assumed to be nominal scale,  
+  even though this might not be the case
+
+* [[?]] some assumption about monthlyrate and monthlyincome and their non-relation?
+
+
+## Train-/Eval-/Test-Split
+
+<div></div><!-- ------------------------------- needed as is before cols - -->
+<div style="float: left; width: 48%;"><!-- ---- start of first column ---- -->
+
+* Data was split into 3 parts using random sampling:
+    * Training set: $80\%$, $n = 1180$
+    * Evaluation set: $10\%$, $n = 135$
+    * Test set: $10\%$, $n = 155$
+
+* Distribution of target variable in each part remained essentially unchanged:
+
+</div><!-- ------------------------------------ end of first column ------ -->
+<div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
+<div style="float: left; width: 48%;"><!-- ---- start of second column --- --> 
+
+```{r, eval = TRUE, echo = FALSE, out.width = "100%", fig.align = "left"}
+knitr::include_graphics("../img/train-eval-test-no-upsampling.jpg")
+```
+
+</div><!-- ------------------------------------ end of second column ----- -->
+<div style="clear: both"></div><!-- end cols for text over both cols below -->
+
+
+## Upsampling the Training Set
+
+<div></div><!-- ------------------------------- needed as is before cols - -->
+<div style="float: left; width: 48%;"><!-- ---- start of first column ---- -->
+
+* To balance out the classes, SMOTE sampling was used for the training set
+    * Synthetic Minority Oversampling Technique
+    * Undersamples the majority class
+    * Creates synthetic examples of the minority class
+    * by randomly varying the features of $k$ nearest neighbours ($k = 5$ in this case)
+* Validation and test set remain untouched
+
+</div><!-- ------------------------------------ end of first column ------ -->
+<div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
+<div style="float: left; width: 48%;"><!-- ---- start of second column --- --> 
+
+```{r, eval = TRUE, echo = FALSE, out.width = "100%", fig.align = "left"}
+knitr::include_graphics("../img/train-eval-test-smote-upsampling.jpg")
+```
+
+</div><!-- ------------------------------------ end of second column ----- -->
+<div style="clear: both"></div><!-- end cols for text over both cols below -->
+
+
+## Machine Learning Models
+
+* A number of models were fitted to the training data:
+    * Logistic regression (R's `base` package)
+    * Elastic net regression (`glmnet` package) 
+    * Random forest (`ranger` package)
+    * Boosted GLMs (`glmboost` from the model-based boosting package `mboost`)
+    * XGBoost (`xgboost` package)
+    * AdaBoost (`adaboost` package) 
+    * Neural net with 1 hidden layer (`nnet` package)
+    
+
+## Model Fitting
+
+* **Data preparation**: nominal variables were manually dummy-coded for model tuning and (initial) model fitting (necessary for applying XGBoost, unfortunately)
+* All model tuning and fitting was performed using the `mlr` package
+
+<br>
+
+* **Parameter tuning**: 50 iterations of random search with 6-fold CV within the training set
+* 
+
+
+
+
+
+## todo
+
+<div></div><!-- ------------------------------- needed as is before cols - -->
+<div style="float: left; width: 48%;"><!-- ---- start of first column ---- -->
+
+
+</div><!-- ------------------------------------ end of first column ------ -->
+<div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
+<div style="float: left; width: 48%;"><!-- ---- start of second column --- --> 
+
+```{r, eval = TRUE, echo = FALSE, out.width = "100%", fig.align = "left"}
+knitr::include_graphics("../img/model-fit-mcc-train-cv.jpg")
+```
+
+</div><!-- ------------------------------------ end of second column ----- -->
+<div style="clear: both"></div><!-- end cols for text over both cols below -->
 
 
 
