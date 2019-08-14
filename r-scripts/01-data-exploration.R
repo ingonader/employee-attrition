@@ -154,18 +154,20 @@ dat_all <- dat_all %>% select(-one_of(varnames_raw_exclude))
 ## EnvironmentSatisfaction: 1-4, might be ordinal or likert-type...
 ## Education: 1-5, might be ordinal or likert-type...
 
+varnames_convert_to_cat <- c(
+  "WorkLifeBalance",
+  "StockOptionLevel",
+  "RelationshipSatisfaction",
+  "JobSatisfaction",
+  "JobLevel",
+  "JobInvolvement",
+  "EnvironmentSatisfaction",
+  "Education"
+)
+
 ## convert to categorical
 varnames_categorical <- setdiff(
-  c(varnames_raw_categorical, c(
-    "WorkLifeBalance",
-    "StockOptionLevel",
-    "RelationshipSatisfaction",
-    "JobSatisfaction",
-    "JobLevel",
-    "JobInvolvement",
-    "EnvironmentSatisfaction",
-    "Education"
-  )),
+  c(varnames_raw_categorical, varnames_convert_to_cat),
   varnames_raw_exclude)
   
 dat_all <- dat_all %>% mutate_at(varnames_categorical, as.factor)

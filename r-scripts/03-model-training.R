@@ -28,6 +28,20 @@ mlr::configureMlr(on.learner.error = "warn")
 n_cpus <- 3
 
 ## ========================================================================= ##
+## function definitions
+## ========================================================================= ##
+
+#' customized ggsave function to avoid retyping all parameters:
+#'
+#' @param fname filename to save in \code{path_img} (defined globally)
+#' @param ... 
+ggsave_cust <- function(fname, p = last_plot(), width = 8, height = 4, dpi = 300, ...) {
+  ggsave(filename = file.path(path_img, fname), 
+         plot = p,
+         width = width, height = height, dpi = dpi, ...)
+}
+
+## ========================================================================= ##
 ## ML models ####
 ## ========================================================================= ##
 
@@ -393,16 +407,21 @@ plotBMRBoxplots_cust <- function(bmr, measure_mlr, measure_name, measure_longnam
     aes(fill = learner.id) + geom_point(alpha = .5) +
     labs(
       title = paste0(measure_longname, " (", measure_name, ") of ", n_reps, "x repeated ",
-                     n_folds, "-fold cross validation"),
+                     n_folds, "-fold CV"),
       subtitle = paste0("with hyperparameters from ", n_maxit, " iterations of random search cross validation"),
       y = measure_name,
       x = ""
     ) +
-    theme(axis.text.x = element_text(angle = 30, hjust = 1))
+    theme(axis.text.x = element_text(angle = 30, hjust = 1)) +
+    theme(
+      plot.title = element_text(size = 11),
+      plot.subtitle = element_text(size = 9))
 }
 
 plotBMRBoxplots_cust(bmr_train, mcc, "MCC", "Matthew's Correlation Coefficient")
+ggsave_cust("model-fit-mcc-train-cv.jpg", width = 5, height = 5)
 plotBMRBoxplots_cust(bmr_train, auc, "AUC", "Area under the ROC curve")
+ggsave_cust("model-fit-auc-train-cv.jpg", width = 5, height = 5)
 
 ## ========================================================================= ##
 ## refit all learners on full training set and evaluate on eval set
@@ -455,7 +474,11 @@ bmr_traineval_summary %>% select(matches("learner|auc"))
 bmr_traineval_summary %>% select(matches("learner|acc"))
 bmr_traineval_summary %>% select(matches("learner|mcc|bac|auc"))
 
-plotBMRBoxplots(bmr_traineval)
+plotBMRBoxplots(bmr_traineval, measure = mcc)
+ggsave_cust("model-fit-mcc-eval.jpg", width = 5, height = 5)
+
+plotBMRBoxplots(bmr_traineval, measure = auc)
+ggsave_cust("model-fit-auc-eval.jpg", width = 5, height = 5)
 
 save.image(file = file.path(path_tmp, "03-model-training___dump01.Rdata"))
 
@@ -500,7 +523,12 @@ bmr_traineval_fact <- benchmark(
 toc()
 
 bmr_traineval_fact
-plotBMRBoxplots(bmr_traineval_fact)
+
+plotBMRBoxplots(bmr_traineval_fact, measure = mcc)
+ggsave_cust("model-fit-mcc-eval-factor.jpg", width = 5, height = 5)
+
+plotBMRBoxplots(bmr_traineval_fact, measure = auc)
+ggsave_cust("model-fit-auc-eval-factor.jpg", width = 5, height = 5)
 
 
 
