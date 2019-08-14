@@ -3645,7 +3645,13 @@ MathJax.Hub.Config({
 <li>by randomly varying the features of \(k\) nearest neighbours (\(k = 5\) in this case)</li>
 </ul></li>
 <li>Validation and test set remain untouched</li>
-</ul></div>
+</ul>
+
+<pre class = 'prettyprint lang-r'>set.seed(9560)
+formula_smote &lt;- paste0(varnames_target, &quot; ~ .&quot;) %&gt;% 
+  as.formula()
+dat_model &lt;- SMOTE(formula_smote,   ##  Attrition ~ .
+                   data  = dat_model_imbal %&gt;% as.data.frame())    </pre></div>
 
 <!-- ------------------------------------ end of first column ------ -->
 
@@ -3685,18 +3691,57 @@ MathJax.Hub.Config({
 </article></slide><slide class=""><hgroup><h2>Model Fitting</h2></hgroup><article  id="model-fitting">
 
 <ul>
-<li><strong>Data preparation</strong>: nominal variables were manually dummy-coded for model tuning and (initial) model fitting (necessary for applying xgboost, unfortunately)</li>
-<li>All model tuning and fitting was performed using the <code>mlr</code> package</li>
-</ul>
-
-<p><br></p>
+<li><strong>Data preparation</strong>: nominal variables were manually dummy-coded for model tuning and (initial) model fitting (necessary for applying XGBoost, unfortunately)</li>
+<li><p>All model tuning and fitting was performed using the <code>mlr</code> package</p></li>
+<li><strong>Parameter tuning</strong>: 50 iterations of random search with 6-fold CV within the training set</li>
+<li><strong>Performance measure</strong>: Matthew’s Correlation Coefficient (MCC)
 
 <ul>
-<li><strong>Parameter tuning</strong>: 50 iterations of random search with 6-fold CV within the training set</li>
-<li></li>
+<li>basically is the correlation of true and predicted labels</li>
+<li>suitable for imbalanced samples</li>
+</ul></li>
 </ul>
 
-</article></slide><slide class=""><hgroup><h2>todo</h2></hgroup><article  id="todo">
+<pre class = 'prettyprint lang-r'>## set random seed, also valid for parallel execution:
+set.seed(4271, &quot;L&#39;Ecuyer&quot;)
+
+## choose resampling strategy for parameter tuning:
+rdesc &lt;- makeResampleDesc(predict = &quot;both&quot;, 
+                          method = &quot;CV&quot;, iters = 6)
+
+## parameters for parameter tuning:
+n_maxit &lt;- 50
+ctrl &lt;- makeTuneControlRandom(maxit = n_maxit)  
+tune_measures &lt;- list(mcc, auc, f1, bac, acc, mmce, timetrain, timepredict)</pre>
+
+</article></slide><slide class=""><hgroup><h2>Model Fitting and Evaluation</h2></hgroup><article  id="model-fitting-and-evaluation">
+
+<ul>
+<li>For <strong>evaluation of performance stability</strong>
+
+<ul>
+<li>Models were fitted with 3x repeated 5-fold cross-validation</li>
+<li>Within the training set</li>
+<li>Using tuned parameters</li>
+</ul></li>
+<li>For <strong>evaluation of model performance</strong>
+
+<ul>
+<li>Models were re-fitted on the complete training set</li>
+<li>And performance was evaluated on the evaluation set</li>
+</ul></li>
+<li>Subset of models was re-fitted on complete training set
+
+<ul>
+<li>using non-dummy-coded data</li>
+<li>for easier model interpretation</li>
+</ul></li>
+<li>Final <strong>evaluation of performance on the test set</strong></li>
+</ul>
+
+</article></slide><slide class="segue dark nobackground level1"><hgroup class = 'auto-fadein'><h2>Results</h2></hgroup><article  id="results">
+
+</article></slide><slide class=""><hgroup><h2>Model Performance Stability</h2></hgroup><article  id="model-performance-stability">
 
 <div>
 </div>
@@ -3704,7 +3749,25 @@ MathJax.Hub.Config({
 <!-- ------------------------------- needed as is before cols - -->
 
 <div style="float: left; width: 48%;">
-<!-- ---- start of first column ---- --></div>
+<!-- ---- start of first column ---- -->
+
+<ul>
+<li>Performance spread similar for most models</li>
+<li>Higher spread for neural network</li>
+<li>Performance can’t be judged within the training set because of SMOTE-sampling</li>
+<li>Severe overfitting for some models (ranger, XGBoost, AdaBoost, neural net)</li>
+</ul>
+
+<pre class = 'prettyprint lang-r'>bmr_train_summary %&gt;% select(matches(&quot;learner|mcc&quot;))</pre>
+
+<pre >        learner.id mcc_train.train.mean mcc.test.mean
+1   classif.logreg            0.6108784     0.5515077
+2   classif.glmnet            0.5985743     0.5406190
+3   classif.ranger            0.9632905     0.7085456
+4 classif.glmboost            0.6033816     0.5381702
+5  classif.xgboost            1.0000000     0.7962943
+6      classif.ada            0.9814215     0.7535416
+7     classif.nnet            0.8474984     0.5990635</pre></div>
 
 <!-- ------------------------------------ end of first column ------ -->
 
@@ -3723,7 +3786,9 @@ MathJax.Hub.Config({
 <div style="clear: both">
 </div>
 
-<!-- end cols for text over both cols below --></article></slide>
+<!-- end cols for text over both cols below -->
+
+</article></slide><slide class=""><hgroup><h2>Performance in Evaluation Set</h2></hgroup><article  id="performance-in-evaluation-set"></article></slide>
 
 
   <slide class="backdrop"></slide>

@@ -290,6 +290,14 @@ varnames_convert_to_cat
     * by randomly varying the features of $k$ nearest neighbours ($k = 5$ in this case)
 * Validation and test set remain untouched
 
+```r
+set.seed(9560)
+formula_smote <- paste0(varnames_target, " ~ .") %>% 
+  as.formula()
+dat_model <- SMOTE(formula_smote,   ##  Attrition ~ .
+                   data  = dat_model_imbal %>% as.data.frame())    
+```
+
 </div><!-- ------------------------------------ end of first column ------ -->
 <div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
 <div style="float: left; width: 48%;"><!-- ---- start of second column --- --> 
@@ -314,23 +322,70 @@ varnames_convert_to_cat
 
 ## Model Fitting
 
-* **Data preparation**: nominal variables were manually dummy-coded for model tuning and (initial) model fitting (necessary for applying xgboost, unfortunately)
+* **Data preparation**: nominal variables were manually dummy-coded for model tuning and (initial) model fitting (necessary for applying XGBoost, unfortunately)
 * All model tuning and fitting was performed using the `mlr` package
 
-<br>
-
 * **Parameter tuning**: 50 iterations of random search with 6-fold CV within the training set
-* 
+* **Performance measure**: Matthew's Correlation Coefficient (MCC) 
+    * basically is the correlation of true and predicted labels
+    * suitable for imbalanced samples
+
+```r
+## set random seed, also valid for parallel execution:
+set.seed(4271, "L'Ecuyer")
+
+## choose resampling strategy for parameter tuning:
+rdesc <- makeResampleDesc(predict = "both", 
+                          method = "CV", iters = 6)
+
+## parameters for parameter tuning:
+n_maxit <- 50
+ctrl <- makeTuneControlRandom(maxit = n_maxit)  
+tune_measures <- list(mcc, auc, f1, bac, acc, mmce, timetrain, timepredict)
+```
+
+
+## Model Fitting and Evaluation
+
+* For **evaluation of performance stability** 
+    * Models were fitted with 3x repeated 5-fold cross-validation
+    * Within the training set
+    * Using tuned parameters
+* For **evaluation of model performance** 
+    * Models were re-fitted on the complete training set
+    * And performance was evaluated on the evaluation set
+* Subset of models was re-fitted on complete training set
+    * using non-dummy-coded data
+    * for easier model interpretation
+* Final **evaluation of performance on the test set**
 
 
 
+# Results
 
-
-## todo
+## Model Performance Stability
 
 <div></div><!-- ------------------------------- needed as is before cols - -->
 <div style="float: left; width: 48%;"><!-- ---- start of first column ---- -->
 
+* Performance spread similar for most models
+* Higher spread for neural network
+* Performance can't be judged within the training set because of SMOTE-sampling
+* Severe overfitting for some models (ranger, XGBoost, AdaBoost, neural net)
+
+```r
+bmr_train_summary %>% select(matches("learner|mcc"))
+```
+```
+        learner.id mcc_train.train.mean mcc.test.mean
+1   classif.logreg            0.6108784     0.5515077
+2   classif.glmnet            0.5985743     0.5406190
+3   classif.ranger            0.9632905     0.7085456
+4 classif.glmboost            0.6033816     0.5381702
+5  classif.xgboost            1.0000000     0.7962943
+6      classif.ada            0.9814215     0.7535416
+7     classif.nnet            0.8474984     0.5990635
+```
 
 </div><!-- ------------------------------------ end of first column ------ -->
 <div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
@@ -341,5 +396,7 @@ varnames_convert_to_cat
 </div><!-- ------------------------------------ end of second column ----- -->
 <div style="clear: both"></div><!-- end cols for text over both cols below -->
 
+
+## Performance in Evaluation Set
 
 
