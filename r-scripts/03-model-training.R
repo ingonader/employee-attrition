@@ -547,7 +547,7 @@ levels(bmr_traineval_summary_plot[["learner.id"]]) <- stringr::str_replace(
   levels(bmr_traineval_summary_plot[["learner.id"]]), 
   "classif\\.", "")
 ggplot(bmr_traineval_summary_plot, 
-       aes(y = value, x = measure, fill = learner.id)) + 
+       aes(y = value, x = learner.id, fill = learner.id)) + 
   geom_bar(stat = "identity", position = "dodge") + 
   facet_wrap(vars(measure), scales = "free") +
   labs(
@@ -662,6 +662,10 @@ dat_perf_test <- mutate(dat_perf_test,
 )
 dat_perf_test
 
+dat_perf_test_rnd <- dat_perf_test
+dat_perf_test_rnd[2:5] <- dat_perf_test_rnd[2:5] %>% round(3)
+dat_perf_test_rnd
+
 dat_perf_test_plot <- dat_perf_test %>% 
   reshape2::melt() %>%
   mutate(
@@ -674,7 +678,7 @@ dat_perf_test_plot <- dat_perf_test %>%
     #learner.id = stringr::str_replace(learner.id, "classif\\.", "")
   )
 ggplot(dat_perf_test_plot, 
-       aes(y = value, x = measure, fill = model)) + 
+       aes(y = value, x = model, fill = model)) + 
   geom_bar(stat = "identity", position = "dodge") + 
   facet_wrap(vars(measure), scales = "free") +
   labs(
@@ -686,6 +690,44 @@ ggplot(dat_perf_test_plot,
     axis.text.x=element_blank(),
     axis.ticks.x=element_blank())
 ggsave_cust("model-fit-all-test.jpg", width = 4, height = 4)
+
+## comparison between eval and test set:
+
+dat_perf_eval <- plyr::rename(bmr_traineval_summary_sel, 
+                              c("learner.id" = "model")) %>%
+  mutate(model = stringr::str_replace(model, "classif\\.", ""))
+names(dat_perf_eval) <- stringr::str_replace(names(dat_perf_eval), "\\.test", "")
+dat_perf_evaltest <- bind_rows(
+  "eval" = dat_perf_eval,
+  "test" = dat_perf_test,
+  .id = "dataset"
+)
+
+dat_perf_evaltest_plot <- dat_perf_evaltest %>% 
+  reshape2::melt(variable.name = "measure") %>%
+  mutate(
+    measure = plyr::revalue(measure, c(
+      "auc" = "Area under Curve (AUC)",
+      "mcc" = "Matthew's Corr. Coef. (MCC)",
+      "bac" = "Balanced Accuracy (BAC)",
+      "acc" = "Accuracy (ACC)"
+    )),
+    model = forcats::fct_relevel(model, "logreg",
+                                 "glmnet",
+                                 "ranger",
+                                 "glmboost",
+                                 "xgboost",
+                                 "ada",
+                                 "nnet")
+  )
+ggplot(dat_perf_evaltest_plot, 
+       aes(y = value, x = model, fill = model, alpha = dataset)) + 
+  geom_bar(stat = "identity", position = "dodge")+ 
+  facet_wrap(vars(measure), scales = "free_y") + 
+  scale_alpha_manual(values=c(.45, .8)) +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+ggsave_cust("model-fit-all-evaltest.jpg", width = 8, height = 4)
+
 
 ## ========================================================================= ##
 ## inspect best model using iml package
@@ -777,16 +819,16 @@ get_imp_topn(imp_glmboost_fact, 10) %>% plot()
 get_imp_topn(imp_glmnet_fact, 10) %>% plot()
 
 
-n_intersect <- 9
-get_imp_topn(imp_logreg_fact, n_intersect)$results$feature %>% 
-  intersect(get_imp_topn(imp_glmboost_fact, n_intersect)$results$feature) %>%
-  intersect(get_imp_topn(imp_glmnet_fact, n_intersect)$results$feature)
+n_intersect <- 10
+get_imp_topn(imp_logreg_fact, n_intersect)$results$feature %>% intersect(
+    get_imp_topn(imp_glmboost_fact, n_intersect)$results$feature) %>% intersect(
+      get_imp_topn(imp_glmnet_fact, n_intersect)$results$feature)
 
 ## overlap between different models of variable importance with 50 reps
-## top-5 features: Only OverTime, JobRole
-## top-8 features: Only OverTime, JobRole
-## top-9 features: OverTime, JobRole, YearsInCurrentRole
-## top-10 features: OverTime, JobRole, YearsInCurrentRole, NumCompaniesWorked, StockOptionLevel
+## top-5 features: OverTime, JobRole, EnvironmentSatisfaction
+## top-8 features: OverTime, JobRole, EnvironmentSatisfaction, BusinessTravel 
+## top-9 features: OverTime, JobRole, EnvironmentSatisfaction, BusinessTravel, EducationField
+## top-10 features: OverTime, JobRole, EnvironmentSatisfaction, BusinessTravel, EducationField, "StockOptionLevel"        "NumCompaniesWorked"
 
 imp_glmboost_fact$results %>% arrange(desc(importance.05))
 
@@ -862,23 +904,33 @@ effs <- FeatureEffect$new(predictor_glmnet_fact, feature = "JobRole", method = "
 plot(effs) + theme(axis.text.x = element_text(angle = 30, hjust = 1))
 ggsave_cust("feat-eff-jobrole-glmnet.jpg", width = 8, height = 3)
 
+effs <- FeatureEffect$new(predictor_glmnet_fact, feature = "EnvironmentSatisfaction", method = "pdp+ice")
+plot(effs)
+ggsave_cust("feat-eff-environmentsatisfaction-glmnet.jpg", width = 8, height = 2.5)
+
 effs <- FeatureEffect$new(predictor_glmnet_fact, feature = "WorkLifeBalance", method = "pdp+ice")
 plot(effs)
 ggsave_cust("feat-eff-worklifebalance-glmnet.jpg", width = 8, height = 2.5)
 
-
-StockOptionLevel
-JobInvolvement
+effs <- FeatureEffect$new(predictor_glmnet_fact, feature = "BusinessTravel", method = "pdp+ice")
+plot(effs) #+ theme(axis.text.x = element_text(angle = 30, hjust = 1))
+ggsave_cust("feat-eff-businesstravel-glmnet.jpg", width = 8, height = 3)
 
 effs <- FeatureEffect$new(predictor_glmnet_fact, feature = "TotalWorkingYears", method = "pdp+ice")
 plot(effs)
 ggsave_cust("feat-eff-totalworkingyears-glmnet.jpg", width = 4.5, height = 4.5)
 
+FeatureEffect$new(predictor_glmboost_fact, feature = "TotalWorkingYears", method = "pdp+ice") %>% plot()
+FeatureEffect$new(predictor_logreg_fact, feature = "TotalWorkingYears", method = "pdp+ice") %>% plot()
+
 effs <- FeatureEffect$new(predictor_glmnet_fact, feature = "NumCompaniesWorked", method = "pdp+ice")
 plot(effs)
 ggsave_cust("feat-eff-numcompaniesworked-glmnet.jpg", width = 4.5, height = 4.5)
 
-effs <- FeatureEffect$new(predictor_glmnet_fact, feature = "YearsInCurrentRole", method = "pdp+ice")
+FeatureEffect$new(predictor_glmboost_fact, feature = "NumCompaniesWorked", method = "pdp+ice") %>% plot()
+FeatureEffect$new(predictor_logreg_fact, feature = "NumCompaniesWorked", method = "pdp+ice") %>% plot()
+
+effs <- FeatureEffect$new(predictor_glmnet_fact, feature = "", method = "pdp+ice")
 plot(effs)
 #ggsave_cust("feat-eff--glmnet.jpg", width = 4.5, height = 4.5)
 
