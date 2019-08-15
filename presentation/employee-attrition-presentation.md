@@ -326,7 +326,7 @@ dat_model <- SMOTE(formula_smote,   ##  Attrition ~ .
 * All model tuning and fitting was performed using the `mlr` package
 
 * **Parameter tuning**: 50 iterations of random search with 6-fold CV within the training set
-* **Performance measure**: Matthew's Correlation Coefficient (MCC) 
+* Main **performance measure**: Matthew's Correlation Coefficient (MCC) 
     * basically is the correlation of true and predicted labels
     * suitable for imbalanced samples
 
@@ -368,10 +368,12 @@ tune_measures <- list(mcc, auc, f1, bac, acc, mmce, timetrain, timepredict)
 <div></div><!-- ------------------------------- needed as is before cols - -->
 <div style="float: left; width: 48%;"><!-- ---- start of first column ---- -->
 
-* Performance spread similar for most models
+* Spread similar for most models
+* Large spread in general (~$0.15 \Delta \mbox{MCC}$)
 * Higher spread for neural network
 * Performance can't be judged within the training set because of SMOTE-sampling
 * Severe overfitting for some models (ranger, XGBoost, AdaBoost, neural net)
+* Least overfitting for elastic net regression
 
 ```r
 bmr_train_summary %>% select(matches("learner|mcc"))
@@ -407,7 +409,25 @@ bmr_train_summary %>% select(matches("learner|mcc"))
 * Followed by elastic net regression and logistic regression
 * XGBoost, AdaBoost and ranger: worse performance
 
-* Other performance measures: glmboost one of the top contenders
+
+</div><!-- ------------------------------------ end of first column ------ -->
+<div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
+<div style="float: left; width: 48%;"><!-- ---- start of second column --- --> 
+
+<img src="../img/model-fit-mcc-eval.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+
+</div><!-- ------------------------------------ end of second column ----- -->
+<div style="clear: both"></div><!-- end cols for text over both cols below -->
+
+
+## Performance in Evaluation Set (cont'd)
+
+<div></div><!-- ------------------------------- needed as is before cols - -->
+<div style="float: left; width: 48%;"><!-- ---- start of first column ---- -->
+
+* Other performance measures (AUC, accuracy): glmboost and elastic net are top contenders
+* Except balanced accuracy: XGBoost and random forest do slightly better, but worse in all other measures
+* Elastic net showed the least overfitting (earlier slides)
 
 ```r
 bmr_traineval_summary_rnd
@@ -427,20 +447,49 @@ bmr_traineval_summary_rnd
 <div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
 <div style="float: left; width: 48%;"><!-- ---- start of second column --- --> 
 
-<img src="../img/model-fit-mcc-eval.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+<img src="../img/model-fit-all-eval.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
 
 </div><!-- ------------------------------------ end of second column ----- -->
 <div style="clear: both"></div><!-- end cols for text over both cols below -->
 
 
-## todo
-
-[[todo]]: plot of non-rounded summary data for all measures 
-
-
 ## Performance in Test Set
 
-[[todo]]
+<div></div><!-- ------------------------------- needed as is before cols - -->
+<div style="float: left; width: 48%;"><!-- ---- start of first column ---- -->
+
+* Elastic net does best (least overfitting before)
+* For all others, evaluation set drastically overestimated performance
+* Drop by about $.1 - .2$ in MCC
+
+```r
+dat_perf_test_rnd
+```
+```
+        learner.id mcc.test auc.test bac.test acc.test
+1   classif.logreg    0.560    0.870    0.726    0.881
+2   classif.glmnet    0.593    0.873    0.700    0.889
+3   classif.ranger    0.446    0.801    0.635    0.859
+4 classif.glmboost    0.625    0.872    0.720    0.896
+5  classif.xgboost    0.542    0.785    0.737    0.874
+6      classif.ada    0.465    0.847    0.708    0.852
+7     classif.nnet    0.443    0.813    0.715    0.837
+```
+
+</div><!-- ------------------------------------ end of first column ------ -->
+<div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
+<div style="float: left; width: 48%;"><!-- ---- start of second column --- --> 
+
+<img src="../img/model-fit-all-test.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+
+</div><!-- ------------------------------------ end of second column ----- -->
+<div style="clear: both"></div><!-- end cols for text over both cols below -->
+
+
+## Performance Generalization Eval/Test
+
+<img src="../img/model-fit-all-evaltest.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+
 
 
 ## Most important Features
@@ -450,13 +499,18 @@ bmr_traineval_summary_rnd
 
 Most important features:
 
-* Working overtime
-* Job role (but with low confidence)
+* **Working overtime**
+* **Job role**
+* **Environment satisfaction**
 * Total working years
 * Number of companies worked for
-* Years in current role
-* Education field
-* Work life balance
+* **Business Travel**
+
+Measured by: 
+
+* increase in classification error (CE) when shuffling the feature
+* used 50 repetitons to increase stability
+
 
 </div><!-- ------------------------------------ end of first column ------ -->
 <div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
@@ -466,6 +520,21 @@ Most important features:
 
 </div><!-- ------------------------------------ end of second column ----- -->
 <div style="clear: both"></div><!-- end cols for text over both cols below -->
+
+
+## Most important Features
+
+Comparing variable importance of 3 top models (logreg, glmnet, glmboost):
+
+* In top-5 features, 3 overlap: 
+    * OverTime
+    * JobRole
+    * EnvironmentSatisfaction
+* In top-8 features, 4 overlap: 
+    * BusinessTravel (in addition to top-5 overlapping features)
+
+* Low agreement between models, not very sound findings
+* Even despite the fact that all models are linear
 
 
 ## Feature Effects: Overtime
@@ -487,7 +556,7 @@ Most important features:
 <div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
 <div style="float: left; width: 48%;"><!-- ---- start of second column --- --> 
 
-<img src="../img/feat-eff-overtime-glmboost.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+<img src="../img/feat-eff-overtime-glmnet.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
 
 </div><!-- ------------------------------------ end of second column ----- -->
 <div style="clear: both"></div><!-- end cols for text over both cols below -->
@@ -495,24 +564,39 @@ Most important features:
 
 ## Feature Effects: Job Role
 
-<img src="../img/feat-eff-jobrole-glmboost.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+<img src="../img/feat-eff-jobrole-glmnet.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
 
 * Highest risk for Sales Representatives, Lab Technicians and HR
 
+## Feature Effects: Environment Satisfaction
+
+<img src="../img/feat-eff-environmentsatisfaction-glmnet.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+
+* Higher satisfaction is associated with lower probability of attrition
+* Might actually be on a continuous scale, but was assumed to be categorical
+
+## Feature Effects: Business Travel
+
+<img src="../img/feat-eff-businesstravel-glmnet.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+
+* The more travel, the higher the attrition risk
 
 ## Feature Effects: Total Working Years
 
 <div></div><!-- ------------------------------- needed as is before cols - -->
 <div style="float: left; width: 48%;"><!-- ---- start of first column ---- -->
 
-* The more working years, the lower the probability for attrition
-* Similar effect for age (correlated)
+* More working years are associated with lower probability for attrition
+* Correlated with age (similar effect)
+* Not all top-3 models agree that this effect is among the important ones  
+  (but they do agree on the direction of the effect)
+
 
 </div><!-- ------------------------------------ end of first column ------ -->
 <div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
 <div style="float: left; width: 48%;"><!-- ---- start of second column --- --> 
 
-<img src="../img/feat-eff-totalworkingyears-glmboost.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+<img src="../img/feat-eff-totalworkingyears-glmnet.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
 
 </div><!-- ------------------------------------ end of second column ----- -->
 <div style="clear: both"></div><!-- end cols for text over both cols below -->
@@ -524,13 +608,15 @@ Most important features:
 <div style="float: left; width: 48%;"><!-- ---- start of first column ---- -->
 
 * The more jobs someone held, the higher the probability for attrition
+* Not all top-3 models agree that this effect is among the important ones  
+  (but they do agree on the direction of the effect)
 
 
 </div><!-- ------------------------------------ end of first column ------ -->
 <div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
 <div style="float: left; width: 48%;"><!-- ---- start of second column --- --> 
 
-<img src="../img/feat-eff-numcompaniesworked-glmboost.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+<img src="../img/feat-eff-numcompaniesworked-glmnet.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
 
 </div><!-- ------------------------------------ end of second column ----- -->
 <div style="clear: both"></div><!-- end cols for text over both cols below -->
@@ -538,7 +624,7 @@ Most important features:
 
 ## Feature Effects: Work Life Balance
 
-<img src="../img/feat-eff-worklifebalance-glmboost.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+<img src="../img/feat-eff-worklifebalance-glmnet.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
 
 * Was treated as categorical variable: Lowest risk in category 3
 * In case that this is assessed via a Likert scale, that might be of interest
@@ -547,14 +633,29 @@ Most important features:
 
 ## Discussion
 
-* Results were not very surprising: Working overtime, less years in jobs, more jobs held are associated with higher probability for attrition
-* Work-life-balance effects somewhat interesting
+* Results not very surprising: Higher probability for attrition associated with
+    * Working overtime
+    * travelling
+    * low environment satisfaction  
+* Similar, but with lower importance and stability
+    * less years in jobs
+    * more jobs held 
+* Work-life-balance effects somewhat interesting (if effect can be trusted)
+
+## Discussion (cont'd)
 
 * Model performance only mediocre at best
-* Effects are not very strong
-* Other features might be more valuable: Management style, flexible working time, amount and quality of team work, etc.
+* Effects of features are not very strong
+* Other features might be more valuable: 
+    * Management style
+    * Flexible working time
+    * Amount and quality of team work
+    * Feedback and recognition, etc.
 * Some potentially useful features might be ethically and legally critical (GDPR), e.g., shifts in starting time
+
+<br> 
 
 * Apart from a better model, other things might be more valuable to understand attrition: Qualitative research, starting with sitting down with your employees and listening to them 
 
 
+# Thank you.
