@@ -109,14 +109,14 @@ MathJax.Hub.Config({
 
 Attrition: 
 
-* problem that impacts all businesses 
-* leads to significant costs for a business
-* including the cost of business disruption, hiring new staff and training new staff. 
+* Problem that impacts all businesses 
+* Leads to significant costs for a business
+* Including the cost of business disruption, hiring new staff and training new staff. 
 
 <br>
 
-* underderstanding the drivers is crucial
-* classification models to predict if an employee is likely to quit could greatly increase HR’s ability to intervene on time and remedy the situation to prevent attrition.
+* Underderstanding the drivers is crucial
+* Classification models to predict if an employee is likely to quit could greatly increase HR’s ability to intervene on time and remedy the situation to prevent attrition.
 
 ## Dataset
 
@@ -150,6 +150,14 @@ Attrition:
 <div style="float: left; width: 48%;"><!-- ---- start of first column ---- -->
 
 * Target variable `Attrition` imbalanced
+```r
+table(dat_raw[["Attrition"]]) %>% prop.table()
+```
+```
+       No       Yes 
+0.8387755 0.1612245 
+```
+
 * No missing values in the data
 * Some features with no variation: 
     * `EmployeeCount`: constant, always 1
@@ -160,7 +168,7 @@ Attrition:
 <div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
 <div style="float: left; width: 48%;"><!-- ---- start of second column --- --> 
 
-<img src="../img/attrition-barplot.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+<img src="./img/attrition-barplot.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
 
 </div><!-- ------------------------------------ end of second column ----- -->
 <div style="clear: both"></div><!-- end cols for text over both cols below -->
@@ -186,15 +194,23 @@ cormat_long %>%
 4      JobLevel     MonthlyIncome  0.9675631
 ```
 
-Pearson correlations,  
-polyserial correlations, and  
-polychoric correlations
+Heterogenous correlation matrix: 
+
+* Pearson correlations,  
+* Polyserial correlations, and  
+* Polychoric correlations
+
+```r
+cormat_hetcor <- polycor::hetcor(
+  as.data.frame(dat_all), 
+  std.err = FALSE, use = "pairwise")
+```
 
 </div><!-- ------------------------------------ end of first column ------ -->
 <div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
 <div style="float: left; width: 58%;"><!-- ---- start of second column --- --> 
 
-<img src="../img/cormat.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+<img src="./img/cormat.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
 
 </div><!-- ------------------------------------ end of second column ----- -->
 <div style="clear: both"></div><!-- end cols for text over both cols below -->
@@ -221,14 +237,14 @@ varnames_features
 ```
 
 * Features excluded:
-    * features with no relevant information: `EmployeeNumber`
-    * constant features: `EmployeeCount`, `Over18`, `StandardHours`
-    * highly correlated features: `JobLevel`, `Department`
+    * Features with no relevant information: `EmployeeNumber`
+    * Constant features: `EmployeeCount`, `Over18`, `StandardHours`
+    * Highly correlated features: `JobLevel`, `Department`
 
 ## Categorical variables
 
-* Variable description did not provide scale level
-* hence, some features were assumed to be categorical and dummy-coded:
+* Variable description did not provide **scale level**
+* Hence, some features were **assumed to be categorical** and dummy-coded:
 
 ```r
 varnames_convert_to_cat
@@ -239,7 +255,7 @@ varnames_convert_to_cat
 [7] "EnvironmentSatisfaction"  "Education" 
 ```
 
-* all of them are in a range of `[1, 4]` or `[1, 5]`
+* All of them are in a range of `[1, 4]` or `[1, 5]`
 * No information about how the information was collected
 * Might be a Likert-Scale (ordinal or even interval scale)
 * But might also be totally unrelated options (nominal scale)
@@ -248,12 +264,17 @@ varnames_convert_to_cat
 
 ## Assumptions: Summary
 
-* Data on individual level and not aggregated  
+* **Data on individual level** and not aggregated  
   (even though there is a variable `EmployeeCount`)
-* Some variables were assumed to be nominal scale,  
-  even though this might not be the case
+* Some variables were **assumed to be nominal scale**,  
+  even though they might be on an ordinal scale
 
-* [[?]] some assumption about monthlyrate and monthlyincome and their non-relation?
+* In general, data was **assumed to be "okay"**,  
+  even though some variables would warrant some questions, e.g.:
+    * `DailyRate`: Seemingly arbitrary numbers
+        * not at all being associated with `MonthlyIncome` ($r = .008$) seemed strange
+    * `MonthlyRate`: Also seemingly arbitrary numbers
+        * not associated with any variable
 
 
 ## Train-/Eval-/Test-Split
@@ -261,7 +282,7 @@ varnames_convert_to_cat
 <div></div><!-- ------------------------------- needed as is before cols - -->
 <div style="float: left; width: 48%;"><!-- ---- start of first column ---- -->
 
-* Data was split into 3 parts using random sampling:
+* Data was split into 3 parts using **random sampling**:
     * Training set: $80\%$, $n = 1180$
     * Evaluation set: $10\%$, $n = 135$
     * Test set: $10\%$, $n = 155$
@@ -272,7 +293,7 @@ varnames_convert_to_cat
 <div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
 <div style="float: left; width: 48%;"><!-- ---- start of second column --- --> 
 
-<img src="../img/train-eval-test-no-upsampling.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+<img src="./img/train-eval-test-no-upsampling.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
 
 </div><!-- ------------------------------------ end of second column ----- -->
 <div style="clear: both"></div><!-- end cols for text over both cols below -->
@@ -283,10 +304,10 @@ varnames_convert_to_cat
 <div></div><!-- ------------------------------- needed as is before cols - -->
 <div style="float: left; width: 48%;"><!-- ---- start of first column ---- -->
 
-* To balance out the classes, SMOTE sampling was used for the training set
+* To balance out the classes, **SMOTE sampling** was used for the training set
     * Synthetic Minority Oversampling Technique
     * Undersamples the majority class
-    * Creates synthetic examples of the minority class
+    * **Creates synthetic examples** of the minority class
     * by randomly varying the features of $k$ nearest neighbours ($k = 5$ in this case)
 * Validation and test set remain untouched
 
@@ -302,7 +323,7 @@ dat_model <- SMOTE(formula_smote,   ##  Attrition ~ .
 <div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
 <div style="float: left; width: 48%;"><!-- ---- start of second column --- --> 
 
-<img src="../img/train-eval-test-smote-upsampling.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+<img src="./img/train-eval-test-smote-upsampling.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
 
 </div><!-- ------------------------------------ end of second column ----- -->
 <div style="clear: both"></div><!-- end cols for text over both cols below -->
@@ -310,7 +331,7 @@ dat_model <- SMOTE(formula_smote,   ##  Attrition ~ .
 
 ## Machine Learning Models
 
-* A number of models were fitted to the training data:
+* A number of **models** were fitted to the training data:
     * Logistic regression (R's `base` package)
     * Elastic net regression (`glmnet` package) 
     * Random forest (`ranger` package)
@@ -320,9 +341,9 @@ dat_model <- SMOTE(formula_smote,   ##  Attrition ~ .
     * Neural net with 1 hidden layer (`nnet` package)
     
 
-## Model Fitting
+## Data Preparation and Model Fitting
 
-* **Data preparation**: nominal variables were manually dummy-coded for model tuning and (initial) model fitting (necessary for applying XGBoost, unfortunately)
+* **Data preparation**: nominal variables were **manually dummy-coded** for model tuning and (initial) model fitting (necessary for applying XGBoost, unfortunately)
 * All model tuning and fitting was performed using the `mlr` package
 
 * **Parameter tuning**: 50 iterations of random search with 6-fold CV within the training set
@@ -347,7 +368,7 @@ tune_measures <- list(mcc, auc, f1, bac, acc, mmce, timetrain, timepredict)
 
 ## Model Fitting and Evaluation
 
-* For **evaluation of performance stability** 
+* For **evaluation of performance stability** and **over-/underfitting**
     * Models were fitted with 3x repeated 5-fold cross-validation
     * Within the training set
     * Using tuned parameters
@@ -368,11 +389,11 @@ tune_measures <- list(mcc, auc, f1, bac, acc, mmce, timetrain, timepredict)
 <div></div><!-- ------------------------------- needed as is before cols - -->
 <div style="float: left; width: 48%;"><!-- ---- start of first column ---- -->
 
+* **Large spread** in general (~$0.15 \Delta \mbox{MCC}$)
 * Spread similar for most models
-* Large spread in general (~$0.15 \Delta \mbox{MCC}$)
 * Higher spread for neural network
 * Performance can't be judged within the training set because of SMOTE-sampling
-* Severe overfitting for some models (ranger, XGBoost, AdaBoost, neural net)
+* **Severe overfitting** for some models (ranger, XGBoost, AdaBoost, neural net)
 * Least overfitting for elastic net regression
 
 ```r
@@ -393,7 +414,7 @@ bmr_train_summary %>% select(matches("learner|mcc"))
 <div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
 <div style="float: left; width: 48%;"><!-- ---- start of second column --- --> 
 
-<img src="../img/model-fit-mcc-train-cv.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+<img src="./img/model-fit-mcc-train-cv.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
 
 </div><!-- ------------------------------------ end of second column ----- -->
 <div style="clear: both"></div><!-- end cols for text over both cols below -->
@@ -405,8 +426,9 @@ bmr_train_summary %>% select(matches("learner|mcc"))
 <div></div><!-- ------------------------------- needed as is before cols - -->
 <div style="float: left; width: 48%;"><!-- ---- start of first column ---- -->
 
-* Boosted GLMs have highest performance in test set (MCC)
-* Followed by elastic net regression and logistic regression
+* **Boosted GLMs** have highest performance in test set (MCC)
+* Followed by **elastic net regression** and **logistic regression**
+
 * XGBoost, AdaBoost and ranger: worse performance
 
 
@@ -414,7 +436,7 @@ bmr_train_summary %>% select(matches("learner|mcc"))
 <div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
 <div style="float: left; width: 48%;"><!-- ---- start of second column --- --> 
 
-<img src="../img/model-fit-mcc-eval.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+<img src="./img/model-fit-mcc-eval.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
 
 </div><!-- ------------------------------------ end of second column ----- -->
 <div style="clear: both"></div><!-- end cols for text over both cols below -->
@@ -425,29 +447,30 @@ bmr_train_summary %>% select(matches("learner|mcc"))
 <div></div><!-- ------------------------------- needed as is before cols - -->
 <div style="float: left; width: 48%;"><!-- ---- start of first column ---- -->
 
-* Other performance measures (AUC, accuracy): glmboost and elastic net are top contenders
+* Other performance measures (AUC, accuracy): **glmboost**, **elastic net** and **logistic regression** are top contenders
 * Except balanced accuracy: XGBoost and random forest do slightly better, but worse in all other measures
-* Elastic net showed the least overfitting (earlier slides)
+* **Elastic net** showed the least overfitting (earlier slides)
+
 
 ```r
-bmr_traineval_summary_rnd
+dat_perf_eval_rnd
 ```
 ```
-        learner.id mcc.test auc.test bac.test acc.test
-1   classif.logreg    0.560    0.870    0.726    0.881
-2   classif.glmnet    0.593    0.873    0.700    0.889
-3   classif.ranger    0.446    0.801    0.635    0.859
-4 classif.glmboost    0.625    0.872    0.720    0.896
-5  classif.xgboost    0.542    0.785    0.737    0.874
-6      classif.ada    0.465    0.847    0.708    0.852
-7     classif.nnet    0.443    0.813    0.715    0.837
+     model     mcc     auc     bac     acc
+1   logreg   0.560   0.870   0.726   0.881
+2   glmnet   0.593   0.873   0.700   0.889
+3   ranger   0.446   0.801   0.635   0.859
+4 glmboost   0.625   0.872   0.720   0.896
+5  xgboost   0.542   0.785   0.737   0.874
+6      ada   0.465   0.847   0.708   0.852
+7     nnet   0.443   0.813   0.715   0.837
 ```
 
 </div><!-- ------------------------------------ end of first column ------ -->
 <div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
 <div style="float: left; width: 48%;"><!-- ---- start of second column --- --> 
 
-<img src="../img/model-fit-all-eval.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+<img src="./img/model-fit-all-eval.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
 
 </div><!-- ------------------------------------ end of second column ----- -->
 <div style="clear: both"></div><!-- end cols for text over both cols below -->
@@ -458,29 +481,34 @@ bmr_traineval_summary_rnd
 <div></div><!-- ------------------------------- needed as is before cols - -->
 <div style="float: left; width: 48%;"><!-- ---- start of first column ---- -->
 
-* Elastic net does best (least overfitting before)
-* For all others, evaluation set drastically overestimated performance
+* **Elastic net** does best (also showed least overfitting before)
+* Most others, especially gradient boosting methods, **drastically overestimated performance in the evaluation set**  
+  (see next slide)
 * Drop by about $.1 - .2$ in MCC
+
+<p style="margin-bottom:35pt;">
+ 
+</p>
 
 ```r
 dat_perf_test_rnd
 ```
 ```
-        learner.id mcc.test auc.test bac.test acc.test
-1   classif.logreg    0.560    0.870    0.726    0.881
-2   classif.glmnet    0.593    0.873    0.700    0.889
-3   classif.ranger    0.446    0.801    0.635    0.859
-4 classif.glmboost    0.625    0.872    0.720    0.896
-5  classif.xgboost    0.542    0.785    0.737    0.874
-6      classif.ada    0.465    0.847    0.708    0.852
-7     classif.nnet    0.443    0.813    0.715    0.837
+     model     mcc     auc     bac     acc
+1   logreg   0.468   0.830   0.659   0.884
+2   glmnet   0.545   0.832   0.667   0.897
+3   ranger   0.422   0.798   0.621   0.877
+4 glmboost   0.464   0.822   0.642   0.884
+5  xgboost   0.363   0.740   0.644   0.858
+6      ada   0.425   0.789   0.668   0.871
+7     nnet   0.373   0.771   0.683   0.839
 ```
 
 </div><!-- ------------------------------------ end of first column ------ -->
 <div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
 <div style="float: left; width: 48%;"><!-- ---- start of second column --- --> 
 
-<img src="../img/model-fit-all-test.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+<img src="./img/model-fit-all-test.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
 
 </div><!-- ------------------------------------ end of second column ----- -->
 <div style="clear: both"></div><!-- end cols for text over both cols below -->
@@ -488,7 +516,7 @@ dat_perf_test_rnd
 
 ## Performance Generalization Eval/Test
 
-<img src="../img/model-fit-all-evaltest.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+<img src="./img/model-fit-all-evaltest.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
 
 
 
@@ -508,15 +536,15 @@ Most important features:
 
 Measured by: 
 
-* increase in classification error (CE) when shuffling the feature
-* used 50 repetitons to increase stability
+* Increase in classification error (CE) when shuffling the feature
+* Used 50 repetitons to increase stability of estimation
 
 
 </div><!-- ------------------------------------ end of first column ------ -->
 <div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
 <div style="float: left; width: 48%;"><!-- ---- start of second column --- --> 
 
-<img src="../img/varimp-glmboost-fact.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+<img src="./img/varimp-glmboost-fact.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
 
 </div><!-- ------------------------------------ end of second column ----- -->
 <div style="clear: both"></div><!-- end cols for text over both cols below -->
@@ -524,7 +552,7 @@ Measured by:
 
 ## Most important Features
 
-Comparing variable importance of 3 top models (logreg, glmnet, glmboost):
+**Comparing variable importance** of 3 top models (logreg, glmnet, glmboost):
 
 * In top-5 features, 3 overlap: 
     * OverTime
@@ -543,20 +571,20 @@ Comparing variable importance of 3 top models (logreg, glmnet, glmboost):
 <div style="float: left; width: 48%;"><!-- ---- start of first column ---- -->
 
 * ICE plot: Independent Conditional Expectations
-    * Predicted probability when 1 feature is varied (others untouched)
+    * Predicted probability when feature is shuffled (others untouched)
     * For all observations individually  
       (dots or thin lines)
     * And summary measure (median or mean)
     * For categorical variables: probability for each outcome  
       (Focus on right plot: Probability for `Attrition == Yes`)
 
-* Higher probability for Attrition of you (have to?) work overtime
+* Higher probability for attrition when working overtime
 
 </div><!-- ------------------------------------ end of first column ------ -->
 <div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
 <div style="float: left; width: 48%;"><!-- ---- start of second column --- --> 
 
-<img src="../img/feat-eff-overtime-glmnet.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+<img src="./img/feat-eff-overtime-glmnet.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
 
 </div><!-- ------------------------------------ end of second column ----- -->
 <div style="clear: both"></div><!-- end cols for text over both cols below -->
@@ -564,20 +592,20 @@ Comparing variable importance of 3 top models (logreg, glmnet, glmboost):
 
 ## Feature Effects: Job Role
 
-<img src="../img/feat-eff-jobrole-glmnet.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+<img src="./img/feat-eff-jobrole-glmnet.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
 
 * Highest risk for Sales Representatives, Lab Technicians and HR
 
 ## Feature Effects: Environment Satisfaction
 
-<img src="../img/feat-eff-environmentsatisfaction-glmnet.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+<img src="./img/feat-eff-environmentsatisfaction-glmnet.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
 
 * Higher satisfaction is associated with lower probability of attrition
 * Might actually be on a continuous scale, but was assumed to be categorical
 
 ## Feature Effects: Business Travel
 
-<img src="../img/feat-eff-businesstravel-glmnet.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+<img src="./img/feat-eff-businesstravel-glmnet.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
 
 * The more travel, the higher the attrition risk
 
@@ -596,7 +624,7 @@ Comparing variable importance of 3 top models (logreg, glmnet, glmboost):
 <div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
 <div style="float: left; width: 48%;"><!-- ---- start of second column --- --> 
 
-<img src="../img/feat-eff-totalworkingyears-glmnet.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+<img src="./img/feat-eff-totalworkingyears-glmnet.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
 
 </div><!-- ------------------------------------ end of second column ----- -->
 <div style="clear: both"></div><!-- end cols for text over both cols below -->
@@ -616,7 +644,7 @@ Comparing variable importance of 3 top models (logreg, glmnet, glmboost):
 <div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
 <div style="float: left; width: 48%;"><!-- ---- start of second column --- --> 
 
-<img src="../img/feat-eff-numcompaniesworked-glmnet.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+<img src="./img/feat-eff-numcompaniesworked-glmnet.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
 
 </div><!-- ------------------------------------ end of second column ----- -->
 <div style="clear: both"></div><!-- end cols for text over both cols below -->
@@ -624,7 +652,7 @@ Comparing variable importance of 3 top models (logreg, glmnet, glmboost):
 
 ## Feature Effects: Work Life Balance
 
-<img src="../img/feat-eff-worklifebalance-glmnet.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+<img src="./img/feat-eff-worklifebalance-glmnet.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
 
 * Was treated as categorical variable: Lowest risk in category 3
 * In case that this is assessed via a Likert scale, that might be of interest
@@ -633,29 +661,38 @@ Comparing variable importance of 3 top models (logreg, glmnet, glmboost):
 
 ## Discussion
 
-* Results not very surprising: Higher probability for attrition associated with
+* Results **not very surprising**: Higher probability for attrition associated with
     * Working overtime
     * travelling
     * low environment satisfaction  
 * Similar, but with lower importance and stability
-    * less years in jobs
+    * fewer working years
     * more jobs held 
 * Work-life-balance effects somewhat interesting (if effect can be trusted)
 
 ## Discussion (cont'd)
 
 * Model performance only mediocre at best
+* SMOTE sampling might not have helped, in hindsight
 * Effects of features are not very strong
 * Other features might be more valuable: 
     * Management style
     * Flexible working time
     * Amount and quality of team work
     * Feedback and recognition, etc.
-* Some potentially useful features might be ethically and legally critical (GDPR), e.g., shifts in starting time
 
-<br> 
 
-* Apart from a better model, other things might be more valuable to understand attrition: Qualitative research, starting with sitting down with your employees and listening to them 
+## Summary
+
+* Business stated that *"Classification models to predict if an employee is likely to quit could greatly increase HR’s ability to intervene on time and remedy the situation to prevent attrition"*
+* Business goal definitely not met with this analysis / dataset:  
+  can only serve to help understand drivers of attrition after the fact
+* For prediction of future attrition 
+    * time-related features (timestamps, changes in satisfaction, etc.) and 
+    * hidehout window would be needed  
+      (how far in the future to predict? what time needed to act?)
+    * (as well as better model quality)
+
 
 
 # Thank you.
