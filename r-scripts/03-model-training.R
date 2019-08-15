@@ -551,7 +551,7 @@ ggplot(bmr_traineval_summary_plot,
   geom_bar(stat = "identity", position = "dodge") + 
   facet_wrap(vars(measure), scales = "free") +
   labs(
-    y = "Performance in evaluatoin set",
+    y = "Performance in evaluation set",
     x = "",
     fill = "Model"
   ) + 
@@ -641,13 +641,51 @@ pred_nnet_fact <- get_preds("classif.nnet")
 calculateConfusionMatrix(pred_glmnet_fact, relative = TRUE)
 calculateConfusionMatrix(pred_glmboost_fact, relative = TRUE)
 
-performance(pred_logreg_fact, measures = list(mcc, auc, bac, acc))
-performance(pred_glmnet_fact, measures = list(mcc, auc, bac, acc))
-performance(pred_ranger, measures = list(mcc, auc, bac, acc))
-performance(pred_glmboost_fact, measures = list(mcc, auc, bac, acc))
-performance(pred_xgboost, measures = list(mcc, auc, bac, acc))
-performance(pred_ada, measures = list(mcc, auc, bac, acc))
-performance(pred_nnet_fact, measures = list(mcc, auc, bac, acc))
+
+dat_perf_test <- bind_rows(
+  data.frame("model" = "logreg", performance(pred_logreg_fact, measures = list(mcc, auc, bac, acc)) %>% t(), stringsAsFactors = FALSE),
+  data.frame("model" = "glmnet", performance(pred_glmnet_fact, measures = list(mcc, auc, bac, acc)) %>% t(), stringsAsFactors = FALSE),
+  data.frame("model" = "ranger", performance(pred_ranger, measures = list(mcc, auc, bac, acc)) %>% t(), stringsAsFactors = FALSE),
+  data.frame("model" = "glmboost", performance(pred_glmboost_fact, measures = list(mcc, auc, bac, acc)) %>% t(), stringsAsFactors = FALSE),
+  data.frame("model" = "xgboost", performance(pred_xgboost, measures = list(mcc, auc, bac, acc)) %>% t(), stringsAsFactors = FALSE),
+  data.frame("model" = "ada", performance(pred_ada, measures = list(mcc, auc, bac, acc)) %>% t(), stringsAsFactors = FALSE),
+  data.frame("model" = "nnet", performance(pred_nnet_fact, measures = list(mcc, auc, bac, acc)) %>% t(), stringsAsFactors = FALSE)
+)
+dat_perf_test <- mutate(dat_perf_test,
+  model = forcats::fct_relevel(model, "logreg",
+                               "glmnet",
+                               "ranger",
+                               "glmboost",
+                               "xgboost",
+                               "ada",
+                               "nnet")
+)
+dat_perf_test
+
+dat_perf_test_plot <- dat_perf_test %>% 
+  reshape2::melt() %>%
+  mutate(
+    measure = plyr::revalue(variable, c(
+      "auc" = "Area under\nCurve (AUC)",
+      "mcc" = "Matthew's Corr.\nCoef. (MCC)",
+      "bac" = "Balanced\nAccuracy (BAC)",
+      "acc" = "Accuracy (ACC)"
+    ))#,
+    #learner.id = stringr::str_replace(learner.id, "classif\\.", "")
+  )
+ggplot(dat_perf_test_plot, 
+       aes(y = value, x = measure, fill = model)) + 
+  geom_bar(stat = "identity", position = "dodge") + 
+  facet_wrap(vars(measure), scales = "free") +
+  labs(
+    y = "Performance in test set",
+    x = "",
+    fill = "Model"
+  ) + 
+  theme(#axis.title.x=element_blank(),
+    axis.text.x=element_blank(),
+    axis.ticks.x=element_blank())
+ggsave_cust("model-fit-all-test.jpg", width = 4, height = 4)
 
 ## ========================================================================= ##
 ## inspect best model using iml package
