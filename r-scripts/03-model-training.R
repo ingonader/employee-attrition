@@ -522,8 +522,8 @@ bmr_traineval_summary %>% select(matches("learner|auc"))
 bmr_traineval_summary %>% select(matches("learner|acc"))
 
 bmr_traineval_summary_rnd <- bmr_traineval_summary %>% 
-  select(matches("learner|mcc|bac|auc"))
-bmr_traineval_summary_rnd[2:4] <- round(bmr_traineval_summary_rnd[2:4], 3)
+  select(matches("learner|mcc|bac|auc|acc"))
+bmr_traineval_summary_rnd[2:5] <- round(bmr_traineval_summary_rnd[2:5], 3)
 names(bmr_traineval_summary_rnd) <- names(bmr_traineval_summary_rnd) %>% 
   stringr::str_replace("\\.mean", "")
 bmr_traineval_summary_rnd
@@ -535,6 +535,8 @@ plotBMRBoxplots(bmr_traineval, measure = auc)
 ggsave_cust("model-fit-auc-eval.jpg", width = 5, height = 5)
 
 # save.image(file = file.path(path_tmp, "03-model-training___dump01.Rdata"))
+# load(file = file.path(path_tmp, "03-model-training___dump01.Rdata"))
+# load(file = file.path(path_tmp, "03-model-training___dump02a_smote.Rdata"))
 
 ## ========================================================================= ##
 ## refit subset of learners on data with factors
@@ -559,6 +561,7 @@ rdesc_bmf
 
 lrns_tuned_fact <- list(
   makeLearner("classif.logreg", predict.type = "prob"),
+  makeLearner("classif.glmnet", predict.type = "prob", par.vals = tune_results_glmnet$x),
   makeLearner("classif.glmboost", predict.type = "prob", par.vals = tune_results_glmboost$x),
   makeLearner("classif.nnet", predict.type = "prob", par.vals = tune_results_nnet$x)
 )
@@ -606,19 +609,20 @@ create_predictor <- function(classif_name, bmr_obj = bmr_traineval, task = 1, da
   )
   return(ret)
 }
+create_predictor_fact <- function(classif_name, bmr_obj = bmr_traineval_fact, task = 1, data = dat_iml_fact) {
+  create_predictor(classif_name, bmr_obj, task, data)
+}
 predictor_logreg <- create_predictor("classif.logreg")
-# predictor_glmnet <- create_predictor("classif.glmnet")
+predictor_glmnet <- create_predictor("classif.glmnet")
 # predictor_ranger <- create_predictor("classif.ranger")
 predictor_glmboost <- create_predictor("classif.glmboost")
 predictor_xgboost <- create_predictor("classif.xgboost")
 predictor_nnet <- create_predictor("classif.nnet")
 
-predictor_logreg_fact <- create_predictor("classif.logreg", bmr_obj = bmr_traineval_fact, 
-                                            data = dat_iml_fact)
-predictor_glmboost_fact <- create_predictor("classif.glmboost", bmr_obj = bmr_traineval_fact, 
-                                            data = dat_iml_fact)
-predictor_nnet_fact <- create_predictor("classif.nnet", bmr_obj = bmr_traineval_fact, 
-                                        data = dat_iml_fact)
+predictor_logreg_fact <- create_predictor_fact("classif.logreg")
+predictor_glmnet_fact <- create_predictor_fact("classif.glmnet")
+predictor_glmboost_fact <- create_predictor_fact("classif.glmboost")
+predictor_nnet_fact <- create_predictor_fact("classif.nnet")
 
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
 ## feature importance: main effects
@@ -630,10 +634,16 @@ plot(imp_logreg)
 imp_logreg_fact <- FeatureImp$new(predictor_logreg_fact, loss = "ce")
 plot(imp_logreg_fact)
 
+imp_glmnet <- FeatureImp$new(predictor_glmnet, loss = "ce")
+plot(imp_glmnet)
+imp_glmnet_fact <- FeatureImp$new(predictor_glmnet_fact, loss = "ce")
+plot(imp_glmnet_fact)
+
 imp_glmboost <- FeatureImp$new(predictor_glmboost, loss = "ce")
 plot(imp_glmboost)
 imp_glmboost_fact <- FeatureImp$new(predictor_glmboost_fact, loss = "ce")
 plot(imp_glmboost_fact)
+ggsave_cust("varimp-glmboost-fact.jpg", width = 4.5, height = 4.5)
 
 imp_nnet <- FeatureImp$new(predictor_nnet, loss = "ce")
 plot(imp_nnet)
@@ -664,9 +674,6 @@ get_imp_topn(imp_logreg_fact, n_intersect)$results$feature %>%
 
 imp_glmboost_fact$results %>% arrange(desc(importance.05))
 
-
-
-
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
 ## feature importance: interactions
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -687,6 +694,32 @@ interact_nnet <- Interaction$new(predictor_nnet)
 plot(interact_nnet)
 
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+## glmboost coefficients
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
+
+## model summary:
+model_glmboost_fact <- getBMRModels(bmr_traineval_fact)[[1]][["classif.glmboost"]][[1]] %>% 
+  getLearnerModel()
+model_glmboost_fact
+summary(model_glmboost_fact)
+
+## model summary of logistic regression, for comparision:
+getBMRModels(bmr_traineval_fact)[[1]][["classif.logreg"]][[1]] %>% 
+  getLearnerModel() %>% summary()
+  
+## get coefficients:
+# model_glmboost_fact$coef() %>% unlist()
+coefficients(model_glmboost_fact, off2int = TRUE) %>% 
+  round(3) %>% as.matrix()
+## seem to be reversed; obviously, seems to predict the first level 
+## (which is "no")
+levels(dat_model[[varnames_target]])
+
+# ?coefficients.mboost
+# methods("coefficients")
+# ?coef.glmboost
+
+## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
 ## feature effects (with iml)
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
 
@@ -700,12 +733,57 @@ plot(interact_nnet)
 #predictor <- predictor_xgboost
 predictor <- predictor_glmboost
 
-## partial dependence plot with ice plot:
+## ------------------------------------------------------------------------- ##
+## partial dependence plots with ice plots for glmboost_fact
+## ------------------------------------------------------------------------- ##
+
+effs <- FeatureEffect$new(predictor_glmboost_fact, feature = "OverTime", method = "pdp+ice")
+plot(effs)
+ggsave_cust("feat-eff-overtime-glmboost.jpg", width = 4.5, height = 4.5)
+
+effs <- FeatureEffect$new(predictor_glmboost_fact, feature = "JobRole", method = "pdp+ice")
+plot(effs) + theme(axis.text.x = element_text(angle = 30, hjust = 1))
+ggsave_cust("feat-eff-jobrole-glmboost.jpg", width = 8, height = 3)
+
+effs <- FeatureEffect$new(predictor_glmboost_fact, feature = "TotalWorkingYears", method = "pdp+ice")
+plot(effs)
+ggsave_cust("feat-eff-totalworkingyears-glmboost.jpg", width = 4.5, height = 4.5)
+
+effs <- FeatureEffect$new(predictor_glmboost_fact, feature = "NumCompaniesWorked", method = "pdp+ice")
+plot(effs)
+ggsave_cust("feat-eff-numcompaniesworked-glmboost.jpg", width = 4.5, height = 4.5)
+
+effs <- FeatureEffect$new(predictor_glmboost_fact, feature = "YearsInCurrentRole", method = "pdp+ice")
+plot(effs)
+#ggsave_cust("feat-eff--glmboost.jpg", width = 4.5, height = 4.5)
+
+effs <- FeatureEffect$new(predictor_glmboost_fact, feature = "EducationField", method = "pdp+ice")
+plot(effs)
+#ggsave_cust("feat-eff--glmboost.jpg", width = 4.5, height = 4.5)
+
+effs <- FeatureEffect$new(predictor_glmboost_fact, feature = "WorkLifeBalance", method = "pdp+ice")
+plot(effs)
+ggsave_cust("feat-eff-worklifebalance-glmboost.jpg", width = 8, height = 2.5)
+
+## * Working overtime
+## * Job role (but with low confidence)
+## * Total working years
+## * Number of companies worked for
+## * Years in current role
+## * Education field
+## * Work life balance
+
+
+
+## partial dependence plot with ice plot, comparisons:
 effs <- FeatureEffect$new(predictor_glmboost, feature = "OverTimeYes", method = "pdp+ice")
 plot(effs)
 
 effs <- FeatureEffect$new(predictor_glmboost_fact, feature = "OverTime", method = "pdp+ice")
 plot(effs)
+# ?plot.FeatureEffect
+# iml:::plot.FeatureEffect
+# effs$generatePlot
 
 effs <- FeatureEffect$new(predictor, feature = "MonthlyIncome", method = "pdp+ice")
 plot(effs)
