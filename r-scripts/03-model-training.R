@@ -628,26 +628,38 @@ predictor_nnet_fact <- create_predictor_fact("classif.nnet")
 ## feature importance: main effects
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
 
+
+n_reps <- 50
+
 ## most important features:
-imp_logreg <- FeatureImp$new(predictor_logreg, loss = "ce")
-plot(imp_logreg)
-imp_logreg_fact <- FeatureImp$new(predictor_logreg_fact, loss = "ce")
+# set.seed(44126)
+# imp_logreg <- FeatureImp$new(predictor_logreg, loss = "ce")
+# plot(imp_logreg)
+set.seed(44126)
+imp_logreg_fact <- FeatureImp$new(predictor_logreg_fact, loss = "ce", n.repetition = n_reps)
 plot(imp_logreg_fact)
 
-imp_glmnet <- FeatureImp$new(predictor_glmnet, loss = "ce")
-plot(imp_glmnet)
-imp_glmnet_fact <- FeatureImp$new(predictor_glmnet_fact, loss = "ce")
+# set.seed(44126)
+# imp_glmnet <- FeatureImp$new(predictor_glmnet, loss = "ce")
+# plot(imp_glmnet)
+set.seed(44126)
+imp_glmnet_fact <- FeatureImp$new(predictor_glmnet_fact, loss = "ce", n.repetition = n_reps)
 plot(imp_glmnet_fact)
+ggsave_cust("varimp-glmnet-fact.jpg", width = 4.5, height = 4.5)
 
-imp_glmboost <- FeatureImp$new(predictor_glmboost, loss = "ce")
-plot(imp_glmboost)
-imp_glmboost_fact <- FeatureImp$new(predictor_glmboost_fact, loss = "ce")
+# set.seed(44126)
+# imp_glmboost <- FeatureImp$new(predictor_glmboost, loss = "ce")
+# plot(imp_glmboost)
+set.seed(44126)
+imp_glmboost_fact <- FeatureImp$new(predictor_glmboost_fact, loss = "ce", n.repetition = n_reps)
 plot(imp_glmboost_fact)
 ggsave_cust("varimp-glmboost-fact.jpg", width = 4.5, height = 4.5)
 
-imp_nnet <- FeatureImp$new(predictor_nnet, loss = "ce")
-plot(imp_nnet)
-imp_nnet_fact <- FeatureImp$new(predictor_nnet_fact, loss = "ce")
+# set.seed(44126)
+# imp_nnet <- FeatureImp$new(predictor_nnet, loss = "ce")
+# plot(imp_nnet)
+set.seed(44126)
+imp_nnet_fact <- FeatureImp$new(predictor_nnet_fact, loss = "ce", n.repetition = n_reps)
 plot(imp_nnet_fact)
 
 
@@ -659,18 +671,24 @@ plot(imp_nnet_fact)
 ## extract top-n most important features:
 get_imp_topn <- function(imp, n_top = 15) {
   ret <- imp$clone()
-  ret$results <- arrange(imp$results, desc(importance.05)) %>% head(n = n_top)
+  ret$results <- arrange(imp$results, desc(importance)) %>% head(n = n_top)
   return(ret)
 }
-get_imp_topn(imp_logreg_fact, 15) %>% plot()
-get_imp_topn(imp_glmboost_fact, 15) %>% plot()
-get_imp_topn(imp_nnet_fact, 15) %>% plot()
+get_imp_topn(imp_logreg_fact, 10) %>% plot()
+get_imp_topn(imp_glmboost_fact, 10) %>% plot()
+get_imp_topn(imp_glmnet_fact, 10) %>% plot()
 
-n_intersect <- 15
+
+n_intersect <- 9
 get_imp_topn(imp_logreg_fact, n_intersect)$results$feature %>% 
   intersect(get_imp_topn(imp_glmboost_fact, n_intersect)$results$feature) %>%
-  intersect(get_imp_topn(imp_nnet_fact, n_intersect)$results$feature)
+  intersect(get_imp_topn(imp_glmnet_fact, n_intersect)$results$feature)
 
+## overlap between different models of variable importance with 50 reps
+## top-5 features: Only OverTime, JobRole
+## top-8 features: Only OverTime, JobRole
+## top-9 features: OverTime, JobRole, YearsInCurrentRole
+## top-10 features: OverTime, JobRole, YearsInCurrentRole, NumCompaniesWorked, StockOptionLevel
 
 imp_glmboost_fact$results %>% arrange(desc(importance.05))
 
@@ -733,6 +751,45 @@ levels(dat_model[[varnames_target]])
 #predictor <- predictor_xgboost
 predictor <- predictor_glmboost
 
+
+## ------------------------------------------------------------------------- ##
+## partial dependence plots with ice plots for glmnet_fact
+## ------------------------------------------------------------------------- ##
+
+effs <- FeatureEffect$new(predictor_glmnet_fact, feature = "OverTime", method = "pdp+ice")
+plot(effs)
+ggsave_cust("feat-eff-overtime-glmnet.jpg", width = 4.5, height = 4.5)
+
+effs <- FeatureEffect$new(predictor_glmnet_fact, feature = "JobRole", method = "pdp+ice")
+plot(effs) + theme(axis.text.x = element_text(angle = 30, hjust = 1))
+ggsave_cust("feat-eff-jobrole-glmnet.jpg", width = 8, height = 3)
+
+effs <- FeatureEffect$new(predictor_glmnet_fact, feature = "WorkLifeBalance", method = "pdp+ice")
+plot(effs)
+ggsave_cust("feat-eff-worklifebalance-glmnet.jpg", width = 8, height = 2.5)
+
+
+StockOptionLevel
+JobInvolvement
+
+effs <- FeatureEffect$new(predictor_glmnet_fact, feature = "TotalWorkingYears", method = "pdp+ice")
+plot(effs)
+ggsave_cust("feat-eff-totalworkingyears-glmnet.jpg", width = 4.5, height = 4.5)
+
+effs <- FeatureEffect$new(predictor_glmnet_fact, feature = "NumCompaniesWorked", method = "pdp+ice")
+plot(effs)
+ggsave_cust("feat-eff-numcompaniesworked-glmnet.jpg", width = 4.5, height = 4.5)
+
+effs <- FeatureEffect$new(predictor_glmnet_fact, feature = "YearsInCurrentRole", method = "pdp+ice")
+plot(effs)
+#ggsave_cust("feat-eff--glmnet.jpg", width = 4.5, height = 4.5)
+
+effs <- FeatureEffect$new(predictor_glmnet_fact, feature = "EducationField", method = "pdp+ice")
+plot(effs)
+#ggsave_cust("feat-eff--glmnet.jpg", width = 4.5, height = 4.5)
+
+
+
 ## ------------------------------------------------------------------------- ##
 ## partial dependence plots with ice plots for glmboost_fact
 ## ------------------------------------------------------------------------- ##
@@ -772,6 +829,7 @@ ggsave_cust("feat-eff-worklifebalance-glmboost.jpg", width = 8, height = 2.5)
 ## * Years in current role
 ## * Education field
 ## * Work life balance
+
 
 
 
