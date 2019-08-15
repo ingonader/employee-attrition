@@ -5,6 +5,89 @@
 ## ######################################################################### ##
 
 ## ######################################################################### ##
+## some mlr learners that weren't used in the analysis ####
+## ######################################################################### ##
+
+# ## extraTrees:
+# ## (much too slow)
+# tic("time: extraTrees")
+# tune_results_xgboost <- tuneParams(
+#   makeLearner("classif.extraTrees", predict.type = "prob"),
+#   task = task_attrition_basic_mm, resampling = rdesc, measures = tune_measures, control = ctrl,
+#   par.set = makeParamSet(
+#     #makeIntegerParam("ntree", lower = 100, upper = 1000),
+#     makeIntegerParam("mtry", lower = 2, upper = length(varnames_features)),
+#     makeIntegerParam("nodesize", lower = 20, upper = 100),
+#     makeIntegerParam("numRandomCuts", lower = 1, upper = 10),
+#     makeLogicalParam("evenCuts")
+#   )
+# )
+# toc()
+# getParamSet("classif.extraTrees")
+
+# # classif.evtree 
+# tic("time: evtree")
+# tune_results_evtree <- tuneParams(
+#   makeLearner("classif.evtree", predict.type = "prob"),
+#   task = task_attrition_basic_mm, resampling = rdesc, measures = tune_measures, control = ctrl,
+#   par.set = makeParamSet(
+#     makeIntegerParam("minbucket", lower = 30, upper = 200),
+#     makeIntegerParam("maxdepth", lower = 4, upper = 30),
+#     makeIntegerParam("niterations", lower = 40, upper = 200),
+#     makeIntegerParam("ntrees", lower = 50, upper = 1000)
+#   )
+# )
+# toc()
+# getParamSet("classif.evtree")
+
+## dbnDNN:
+tic("time: dbnDNN")
+tune_results_dbndnn <- tuneParams(
+  makeLearner("classif.dbnDNN", predict.type = "prob"),
+  task = task_attrition_basic_mm, resampling = rdesc, measures = tune_measures, control = ctrl,
+  par.set = makeParamSet(
+    makeIntegerParam("hidden", lower = 3, upper = 20),
+    makeDiscreteParam("activationfun", c("sigm", "linear", "tanh")),
+    makeNumericParam("learningrate", lower = .01, upper = .9),
+    makeNumericParam("momentum", lower = .1, upper = .9),
+    makeIntegerParam("numepochs", lower = 2, upper = 20),
+    makeIntegerParam("batchsize", lower = 64, upper = 256),
+    makeNumericParam("hidden_dropout", lower = .2, upper = .6),
+    makeNumericParam("visible_dropout", lower = .2, upper = .6)
+  )
+)
+toc()
+# getParamSet("classif.dbnDNN")
+
+# classif.featureless 
+tic("time: featureless")
+tune_results_featureless <- tuneParams(
+  makeLearner("classif.featureless", predict.type = "prob"),
+  task = task_attrition_basic_mm, resampling = rdesc, measures = tune_measures, control = ctrl,
+  par.set = makeParamSet(
+    makeDiscreteParam("method", c("majority", "sample-prior"))
+  )
+)
+toc()
+# getParamSet("classif.featureless")
+
+# ## support vector machine
+# ## (too slow)
+# tic("time: tuning svm")
+# tune_results_svm <- tuneParams(
+#   makeLearner("classif.svm", predict.type = "prob"),
+#   task = task_attrition_basic, resampling = rdesc, measures = tune_measures, control = ctrl,
+#   par.set = makeParamSet(
+#     makeDiscreteParam("kernel", c("linear", "polynomial", "radial")),
+#     #makeIntegerParam("degree", lower = 3, upper = 3),
+#     makeNumericParam("gamma", lower = 0.1, upper = 10)
+#   )
+# )
+# toc()
+# getParamSet("regr.svm")
+
+
+## ######################################################################### ##
 ## Refit linear ML models with interactions #### 
 ## ######################################################################### ##
 
@@ -220,3 +303,7 @@ print(step.model2$bestTune)
 
 # Coefficients of best model
 print(coef(step.model2$finalModel, 6))
+
+
+
+

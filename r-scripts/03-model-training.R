@@ -86,6 +86,7 @@ dat_train[[varnames_target]] %>% table() %>% prop.table() %>% data.frame("datase
 dat_eval[[varnames_target]] %>% table() %>% prop.table() %>% data.frame("dataset" = "eval")
 dat_test[[varnames_target]] %>% table() %>% prop.table() %>% data.frame("dataset" = "test")
 
+## plot target variable distribution:
 bind_rows(
   data.frame(dat_train, "dataset" = "train", stringsAsFactors = FALSE),
   data.frame(dat_eval, "dataset" = "eval", stringsAsFactors = FALSE),
@@ -97,6 +98,7 @@ bind_rows(
   #scale_y_continuous(labels = percent_format())
 ggsave_cust("train-eval-test-no-upsampling.jpg", height = 4, width = 4)
 
+## plot target variable distribution after SMOTE sampling:
 bind_rows(
   data.frame(dat_model, "dataset" = "train", stringsAsFactors = FALSE),
   data.frame(dat_eval, "dataset" = "eval", stringsAsFactors = FALSE),
@@ -107,13 +109,23 @@ bind_rows(
 ggsave_cust("train-eval-test-smote-upsampling.jpg", height = 4, width = 4)
 
 
-
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
 ## create model matrix (one-hot-encoding)
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
 
-## function to do one-hot encoding of categorical variables:
-## (based on global variables only for exploration)
+#' function to do one-hot encoding of categorical variables:
+#' (based on global variables only for exploration)
+#'
+#' @param dat Data that should be one-hot encoded
+#' @param interaction Either \code{NA} for no interactions, or the
+#'   level of interactions that should be generated (e.g., 2 for
+#'   main effects and all two-way interactions, 3 for these and all
+#'   three-way interactions -- which is probably overkill).
+#' 
+#' @return A data frame without factors, as all factors have been
+#'   dummy-coded using \code{model.matrix}. Data does not contain
+#'   an intercept to avoid rank-deficient matrices when fitting 
+#'   regression models (will add intercept by default)
 create_mm_data <- function(dat, interaction = NA) {
   ## define formulas (model matrix / design matrix):
   if (is.na(interaction)) {
@@ -146,6 +158,7 @@ create_mm_data <- function(dat, interaction = NA) {
   return(dat_model_mm)
 }
 
+## create dummy-coded data (without intercept):
 dat_model_mm <- create_mm_data(dat_model)
 
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -220,8 +233,6 @@ tune_results_rpart <- tuneParams(
 toc()
 # getParamSet("classif.rpart")
 
-
-
 ## faster random forest implementation:
 tic("time: tuning ranger")
 tune_results_ranger <- tuneParams(
@@ -281,38 +292,6 @@ tune_results_ada <- tuneParams(
 toc()
 # getParamSet("classif.ada")
 
-# ## extraTrees:
-# ## (much too slow)
-# tic("time: extraTrees")
-# tune_results_xgboost <- tuneParams(
-#   makeLearner("classif.extraTrees", predict.type = "prob"),
-#   task = task_attrition_basic_mm, resampling = rdesc, measures = tune_measures, control = ctrl,
-#   par.set = makeParamSet(
-#     #makeIntegerParam("ntree", lower = 100, upper = 1000),
-#     makeIntegerParam("mtry", lower = 2, upper = length(varnames_features)),
-#     makeIntegerParam("nodesize", lower = 20, upper = 100),
-#     makeIntegerParam("numRandomCuts", lower = 1, upper = 10),
-#     makeLogicalParam("evenCuts")
-#   )
-# )
-# toc()
-# getParamSet("classif.extraTrees")
-
-# # classif.evtree 
-# tic("time: evtree")
-# tune_results_evtree <- tuneParams(
-#   makeLearner("classif.evtree", predict.type = "prob"),
-#   task = task_attrition_basic_mm, resampling = rdesc, measures = tune_measures, control = ctrl,
-#   par.set = makeParamSet(
-#     makeIntegerParam("minbucket", lower = 30, upper = 200),
-#     makeIntegerParam("maxdepth", lower = 4, upper = 30),
-#     makeIntegerParam("niterations", lower = 40, upper = 200),
-#     makeIntegerParam("ntrees", lower = 50, upper = 1000)
-#   )
-# )
-# toc()
-# getParamSet("classif.evtree")
-
 ## neural net:
 tic("time: nnet")
 tune_results_nnet <- tuneParams(
@@ -329,53 +308,6 @@ toc()
 # getParamSet("classif.nnet")
 
 
-## dbnDNN:
-tic("time: dbnDNN")
-tune_results_dbndnn <- tuneParams(
-  makeLearner("classif.dbnDNN", predict.type = "prob"),
-  task = task_attrition_basic_mm, resampling = rdesc, measures = tune_measures, control = ctrl,
-  par.set = makeParamSet(
-    makeIntegerParam("hidden", lower = 3, upper = 20),
-    makeDiscreteParam("activationfun", c("sigm", "linear", "tanh")),
-    makeNumericParam("learningrate", lower = .01, upper = .9),
-    makeNumericParam("momentum", lower = .1, upper = .9),
-    makeIntegerParam("numepochs", lower = 2, upper = 20),
-    makeIntegerParam("batchsize", lower = 64, upper = 256),
-    makeNumericParam("hidden_dropout", lower = .2, upper = .6),
-    makeNumericParam("visible_dropout", lower = .2, upper = .6)
-  )
-)
-toc()
-# getParamSet("classif.dbnDNN")
-
-# classif.featureless 
-tic("time: featureless")
-tune_results_featureless <- tuneParams(
-  makeLearner("classif.featureless", predict.type = "prob"),
-  task = task_attrition_basic_mm, resampling = rdesc, measures = tune_measures, control = ctrl,
-  par.set = makeParamSet(
-    makeDiscreteParam("method", c("majority", "sample-prior"))
-  )
-)
-toc()
-# getParamSet("classif.featureless")
-
-# ## support vector machine
-# ## (too slow)
-# tic("time: tuning svm")
-# tune_results_svm <- tuneParams(
-#   makeLearner("classif.svm", predict.type = "prob"),
-#   task = task_attrition_basic, resampling = rdesc, measures = tune_measures, control = ctrl,
-#   par.set = makeParamSet(
-#     makeDiscreteParam("kernel", c("linear", "polynomial", "radial")),
-#     #makeIntegerParam("degree", lower = 3, upper = 3),
-#     makeNumericParam("gamma", lower = 0.1, upper = 10)
-#   )
-# )
-# toc()
-# getParamSet("regr.svm")
-
-
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
 ## refit all learners with their tuned parameters (with CV)
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
@@ -386,19 +318,15 @@ set.seed(427121, "L'Ecuyer")
 lrns_tuned <- list(
   makeLearner("classif.logreg", predict.type = "prob"),
   makeLearner("classif.glmnet", predict.type = "prob", par.vals = tune_results_glmnet$x),
-  #makeLearner("classif.rpart", predict.type = "prob", par.vals = tune_results_rpart$x),
   makeLearner("classif.ranger", predict.type = "prob", par.vals = tune_results_ranger$x),
   makeLearner("classif.glmboost", predict.type = "prob", par.vals = tune_results_glmboost$x),
   makeLearner("classif.xgboost", predict.type = "prob", par.vals = tune_results_xgboost$x),
   makeLearner("classif.ada", predict.type = "prob", par.vals = tune_results_ada$x),
   makeLearner("classif.nnet", predict.type = "prob", par.vals = tune_results_nnet$x)
-  # makeLearner("classif.dbnDNN", predict.type = "prob", 
-  #             id = "Deep Neural\nNetwork", par.vals = tune_results_dbndnn$x),
-  # makeLearner("classif.featureless", predict.type = "prob", 
-  #             id = "Featureless\nClassifier", par.vals = tune_results_featureless$x)
 )
 
 ## create training aggregation measures:
+## (change id for plotBMRboxplot to work later)
 mcc_train <- setAggregation(mcc, train.mean)
 mcc_train[["id"]] <- "mcc_train"
 auc_train <- setAggregation(auc, train.mean)
@@ -412,6 +340,7 @@ acc_train[["id"]] <- "acc_train"
 mmce_train <- setAggregation(mmce, train.mean)
 mmce_train[["id"]] <- "mmce_train"
 
+# define number of folds and repetions for CV:
 n_reps <- 3
 n_folds <- 5 
 
@@ -432,6 +361,7 @@ bmr_train <- benchmark(
 )
 toc()
 
+## stop parallel execution:
 parallelMap::parallelStop()
 
 ## tabluar results:
@@ -444,9 +374,19 @@ bmr_train_summary %>% select(matches("learner|acc"))
 
 bmr_train_summary %>% select(matches("learner|mcc|bac|auc"))
 
-
+## boxplots of results:
 plotBMRBoxplots(bmr_train)
 
+
+#' Beautified violin plot of iml benchmarking results with sensible defaults
+#'
+#' @param bmr iml benchmarking object to be plotted
+#' @param measure_mlr iml measure to be used
+#' @param measure_name Abbreviation of the measure that should be used as axis 
+#'   label and in title 
+#' @param measure_longname Long name of the measure that should be used in title
+#'
+#' @return A ggplot object
 plotBMRBoxplots_cust <- function(bmr, measure_mlr, measure_name, measure_longname) {
   plotBMRBoxplots(bmr, 
                   measure = measure_mlr, 
@@ -469,8 +409,10 @@ plotBMRBoxplots_cust <- function(bmr, measure_mlr, measure_name, measure_longnam
       plot.subtitle = element_text(size = 9))
 }
 
+## plot and save violin plots of results:
 plotBMRBoxplots_cust(bmr_train, mcc, "MCC", "Matthew's Correlation Coefficient")
 ggsave_cust("model-fit-mcc-train-cv.jpg", width = 4, height = 4)
+
 plotBMRBoxplots_cust(bmr_train, auc, "AUC", "Area under the ROC curve")
 ggsave_cust("model-fit-auc-train-cv.jpg", width = 4, height = 4)
 
@@ -478,12 +420,16 @@ ggsave_cust("model-fit-auc-train-cv.jpg", width = 4, height = 4)
 ## refit all learners on full training set and evaluate on eval set
 ## ========================================================================= ##
 
+## create combined train/eval dataset to use for benchmarking:
 dat_modeleval <- bind_rows(
   dat_train[varnames_model],
   dat_eval[varnames_model]
 )
+
+## manually dummy-code:
 dat_modeleval_mm <- create_mm_data(dat_modeleval)
 
+## create index variable to pass to benchmarking function later:
 idx_train <- 1:nrow(dat_train)
 idx_eval <- nrow(dat_train) + (1:nrow(dat_eval))
 
@@ -524,14 +470,28 @@ bmr_traineval_summary %>% select(matches("learner|bac"))
 bmr_traineval_summary %>% select(matches("learner|auc"))
 bmr_traineval_summary %>% select(matches("learner|acc"))
 
+## create data frame for plotting:
 bmr_traineval_summary_sel <- bmr_traineval_summary %>% 
   select(matches("learner|mcc|bac|auc|acc"))
 names(bmr_traineval_summary_sel) <- names(bmr_traineval_summary_sel) %>% 
   stringr::str_replace("\\.mean", "")
-bmr_traineval_summary_rnd <- bmr_traineval_summary_sel
-bmr_traineval_summary_rnd[2:5] <- round(bmr_traineval_summary_rnd[2:5], 3)
+bmr_traineval_summary_rnd <- bmr_traineval_summary_sel %>% 
+  mutate_at(2:5, round, 3)
 
-bmr_traineval_summary_rnd
+## create data frame for result presentation:
+dat_perf_eval <- bmr_traineval_summary_sel %>%
+  mutate(
+    learner.id = stringr::str_replace(learner.id, "classif\\.", "")
+  )
+names(dat_perf_eval) <- plyr::revalue(
+  names(dat_perf_eval), c("learner.id" = "model")
+) %>% stringr::str_replace("\\.test", "")
+
+dat_perf_eval_rnd <- dat_perf_eval %>% 
+  mutate_at(2:5, round, 3)
+dat_perf_eval_rnd
+
+## plot results:
 bmr_traineval_summary_plot <- bmr_traineval_summary_sel %>% 
   reshape2::melt() %>%
   mutate(
@@ -625,10 +585,21 @@ ggsave_cust("model-fit-auc-eval-factor.jpg", width = 4, height = 4)
 ## performance in test set
 ## ========================================================================= ##
 
+#' Helper function to create predictions
+#'
+#' @param classif_name Name of the classifier to extract, e.g., 
+#'   \code{classif.logreg}
+#' @param bmr_obj mlr benchmark object containing classifier
+#' @param task mlr task that should be extracted (defaults to first)
+#' @param data data that is passed to the predictor function
+#'
+#' @return mlr prediction object containing predictions on data
 get_preds <- function(classif_name, bmr_obj = bmr_traineval_fact, task = 1, data = dat_test) {
   ret <- predict(getBMRModels(bmr_obj)[[task]][[classif_name]][[1]], 
                  newdata = data %>% as.data.frame())
 }
+
+## create predictions:
 pred_logreg_fact <- get_preds("classif.logreg")
 pred_glmnet_fact <- get_preds("classif.glmnet")
 pred_ranger <- get_preds("classif.ranger", bmr_traineval, data = create_mm_data(dat_test))
@@ -637,11 +608,11 @@ pred_xgboost <- get_preds("classif.xgboost", bmr_traineval, data = create_mm_dat
 pred_ada <- get_preds("classif.ada", bmr_traineval, data = create_mm_data(dat_test))
 pred_nnet_fact <- get_preds("classif.nnet")
 
-
+## calculate confusion matrix:
 calculateConfusionMatrix(pred_glmnet_fact, relative = TRUE)
 calculateConfusionMatrix(pred_glmboost_fact, relative = TRUE)
 
-
+## create data.frame of test performance for presentation:
 dat_perf_test <- bind_rows(
   data.frame("model" = "logreg", performance(pred_logreg_fact, measures = list(mcc, auc, bac, acc)) %>% t(), stringsAsFactors = FALSE),
   data.frame("model" = "glmnet", performance(pred_glmnet_fact, measures = list(mcc, auc, bac, acc)) %>% t(), stringsAsFactors = FALSE),
@@ -662,10 +633,10 @@ dat_perf_test <- mutate(dat_perf_test,
 )
 dat_perf_test
 
-dat_perf_test_rnd <- dat_perf_test
-dat_perf_test_rnd[2:5] <- dat_perf_test_rnd[2:5] %>% round(3)
+dat_perf_test_rnd <- dat_perf_test %>% mutate_at(2:5, round, 3)
 dat_perf_test_rnd
 
+## plot test performance:
 dat_perf_test_plot <- dat_perf_test %>% 
   reshape2::melt() %>%
   mutate(
@@ -691,18 +662,19 @@ ggplot(dat_perf_test_plot,
     axis.ticks.x=element_blank())
 ggsave_cust("model-fit-all-test.jpg", width = 4, height = 4)
 
-## comparison between eval and test set:
 
-dat_perf_eval <- plyr::rename(bmr_traineval_summary_sel, 
-                              c("learner.id" = "model")) %>%
-  mutate(model = stringr::str_replace(model, "classif\\.", ""))
-names(dat_perf_eval) <- stringr::str_replace(names(dat_perf_eval), "\\.test", "")
+## ========================================================================= ##
+## comparison between eval and test set
+## ========================================================================= ##
+
+## create data of eval and test set performance:
 dat_perf_evaltest <- bind_rows(
   "eval" = dat_perf_eval,
   "test" = dat_perf_test,
   .id = "dataset"
 )
 
+## create data for plotting:
 dat_perf_evaltest_plot <- dat_perf_evaltest %>% 
   reshape2::melt(variable.name = "measure") %>%
   mutate(
@@ -735,26 +707,58 @@ ggsave_cust("model-fit-all-evaltest.jpg", width = 8, height = 4)
 
 library(iml)
 
-## take sample for quicker model exploration:
+## select data for model inspection; use training data here:
+## (and possibly take sample for quicker model exploration):
 set.seed(442)
 dat_iml <- dat_model_mm # %>% sample_n(500)
 set.seed(442)
 dat_iml_fact <- dat_model # %>% sample_n(500)
 
-## create a predictor container(s):
-create_predictor <- function(classif_name, bmr_obj = bmr_traineval, task = 1, data = dat_iml) {
+#' Create predictor container with sensible defaults
+#' 
+#' Defaulting to models fitted on complete training set with evaluation set
+#' as target prediction. Using the tasks with manually dummy-coded data.
+#'
+#' @param classif_name Name of the classifier to extract, e.g., 
+#'   \code{classif.logreg}
+#' @param bmr_obj mlr benchmark object containing classifier
+#' @param task mlr task that should be extracted (defaults to first)
+#' @param data data that is passed to the predictor object, will be used
+#'   to generate predictions for evaluating feature importance or
+#'   feature effects
+#'
+#' @return An iml predictor object (R6)
+create_predictor <- function(classif_name, bmr_obj = bmr_traineval, 
+                             task = 1, 
+                             data = dat_iml) 
+{
   ret <- Predictor$new(
     model = getBMRModels(bmr_obj)[[task]][[classif_name]][[1]],
     data = data %>% select(-varnames_target),  y = dat_iml[varnames_target]
   )
   return(ret)
 }
-create_predictor_fact <- function(classif_name, bmr_obj = bmr_traineval_fact, task = 1, data = dat_iml_fact) {
+
+#' Create predictor container with sensible defaults
+#' 
+#' Defaulting to models fitted on complete training set with evaluation set
+#' as target prediction. Using the tasks with manually dummy-coded data.
+#'
+#' @inheritParam create_predictor 
+#'
+#' @return An iml predictor object (R6)
+create_predictor_fact <- function(classif_name, 
+                                  bmr_obj = bmr_traineval_fact, 
+                                  task = 1, 
+                                  data = dat_iml_fact) 
+{
   create_predictor(classif_name, bmr_obj, task, data)
 }
+
+## create a predictor container(s):
 predictor_logreg <- create_predictor("classif.logreg")
 predictor_glmnet <- create_predictor("classif.glmnet")
-# predictor_ranger <- create_predictor("classif.ranger")
+predictor_ranger <- create_predictor("classif.ranger")
 predictor_glmboost <- create_predictor("classif.glmboost")
 predictor_xgboost <- create_predictor("classif.xgboost")
 predictor_nnet <- create_predictor("classif.nnet")
@@ -767,7 +771,6 @@ predictor_nnet_fact <- create_predictor_fact("classif.nnet")
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
 ## feature importance: main effects
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-
 
 n_reps <- 50
 
@@ -808,17 +811,27 @@ plot(imp_nnet_fact)
 # imp_ranger <- FeatureImp$new(predictor_ranger, loss = "ce")
 # plot(imp_ranger)
 
-## extract top-n most important features:
+#' Get top-n most important features
+#'
+#' Short helper function to extract information from an iml
+#' FeatureImp object.
+#'
+#' @param imp iml FeatureImp object (R6)
+#' @param n_top How many of the most important features should be extracted?
+#'
+#' @return Another FeatureImp object (R6)
 get_imp_topn <- function(imp, n_top = 15) {
   ret <- imp$clone()
   ret$results <- arrange(imp$results, desc(importance)) %>% head(n = n_top)
   return(ret)
 }
+
+## extract top-n most important features:
 get_imp_topn(imp_logreg_fact, 10) %>% plot()
 get_imp_topn(imp_glmboost_fact, 10) %>% plot()
 get_imp_topn(imp_glmnet_fact, 10) %>% plot()
 
-
+## get intersecting top-n important features of logreg, glmnet, glmboost:
 n_intersect <- 10
 get_imp_topn(imp_logreg_fact, n_intersect)$results$feature %>% intersect(
     get_imp_topn(imp_glmboost_fact, n_intersect)$results$feature) %>% intersect(
@@ -829,27 +842,6 @@ get_imp_topn(imp_logreg_fact, n_intersect)$results$feature %>% intersect(
 ## top-8 features: OverTime, JobRole, EnvironmentSatisfaction, BusinessTravel 
 ## top-9 features: OverTime, JobRole, EnvironmentSatisfaction, BusinessTravel, EducationField
 ## top-10 features: OverTime, JobRole, EnvironmentSatisfaction, BusinessTravel, EducationField, "StockOptionLevel"        "NumCompaniesWorked"
-
-imp_glmboost_fact$results %>% arrange(desc(importance.05))
-
-## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-## feature importance: interactions
-## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
-
-
-interact_glmboost <- Interaction$new(predictor_glmboost)
-interact_glmboost %>% str()
-
-interact_glmboost_fact <- Interaction$new(predictor_glmboost_fact)
-interact_glmboost_fact %>% str()
-plot(interact_glmboost_fact)
-
-interact_ranger <- Interaction$new(predictor_ranger)
-plot(interact_ranger)
-## [[?]][[better plot]]
-
-interact_nnet <- Interaction$new(predictor_nnet)
-plot(interact_nnet)
 
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
 ## glmboost coefficients
@@ -871,11 +863,6 @@ coefficients(model_glmboost_fact, off2int = TRUE) %>%
   round(3) %>% as.matrix()
 ## seem to be reversed; obviously, seems to predict the first level 
 ## (which is "no")
-levels(dat_model[[varnames_target]])
-
-# ?coefficients.mboost
-# methods("coefficients")
-# ?coef.glmboost
 
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ##
 ## feature effects (with iml)
@@ -972,47 +959,7 @@ effs <- FeatureEffect$new(predictor_glmboost_fact, feature = "WorkLifeBalance", 
 plot(effs)
 ggsave_cust("feat-eff-worklifebalance-glmboost.jpg", width = 8, height = 2.5)
 
-## * Working overtime
-## * Job role (but with low confidence)
-## * Total working years
-## * Number of companies worked for
-## * Years in current role
-## * Education field
-## * Work life balance
-
-
-
-
-## partial dependence plot with ice plot, comparisons:
-effs <- FeatureEffect$new(predictor_glmboost, feature = "OverTimeYes", method = "pdp+ice")
-plot(effs)
-
-effs <- FeatureEffect$new(predictor_glmboost_fact, feature = "OverTime", method = "pdp+ice")
-plot(effs)
-# ?plot.FeatureEffect
-# iml:::plot.FeatureEffect
-# effs$generatePlot
-
-effs <- FeatureEffect$new(predictor, feature = "MonthlyIncome", method = "pdp+ice")
-plot(effs)
-
-effs <- FeatureEffect$new(predictor_glmboost_fact, feature = "OverTime", method = "pdp+ice")
-plot(effs)
-effs <- FeatureEffect$new(predictor_glmboost_fact, feature = "Age", method = "pdp+ice")
-plot(effs)
 
 # save.image(file = file.path(path_tmp, "03-model-training___dump02a.Rdata"))
 
 
-dat_iml %>% names()
-
-## next steps:
-## * (done) re-estimate on complete training set
-## * (done) benchmark on validation set
-## * (done) try refitting linear models (only) with interactions and feature selection
-## * (done) try stepwise glm with interactions with forward selection, starting at full model
-## * cleanup and move interaction stuff to different file
-## * choose best model of each class, quantify performance
-## * take best model and inspect it:
-##   * variable importance
-##   * ice plots or similar

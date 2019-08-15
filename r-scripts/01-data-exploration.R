@@ -177,7 +177,8 @@ dat_all <- dat_all %>% mutate_at(varnames_categorical, as.factor)
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ## 
 
 ## correlations (heterogenous correlation matrix):
-cormat_hetcor <- polycor::hetcor(as.data.frame(dat_all), std.err = FALSE, use = "pairwise")
+cormat_hetcor <- polycor::hetcor(as.data.frame(dat_all), 
+                                 std.err = FALSE, use = "pairwise")
 cormat <- cormat_hetcor[["correlations"]]
 cormat
 
