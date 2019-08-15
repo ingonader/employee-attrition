@@ -400,3 +400,161 @@ bmr_train_summary %>% select(matches("learner|mcc"))
 ## Performance in Evaluation Set
 
 
+<div></div><!-- ------------------------------- needed as is before cols - -->
+<div style="float: left; width: 48%;"><!-- ---- start of first column ---- -->
+
+* Boosted GLMs have highest performance in test set (MCC)
+* Followed by elastic net regression and logistic regression
+* XGBoost, AdaBoost and ranger: worse performance
+
+* Other performance measures: glmboost one of the top contenders
+
+```r
+bmr_traineval_summary_rnd
+```
+```
+        learner.id mcc.test auc.test bac.test acc.test
+1   classif.logreg    0.560    0.870    0.726    0.881
+2   classif.glmnet    0.593    0.873    0.700    0.889
+3   classif.ranger    0.446    0.801    0.635    0.859
+4 classif.glmboost    0.625    0.872    0.720    0.896
+5  classif.xgboost    0.542    0.785    0.737    0.874
+6      classif.ada    0.465    0.847    0.708    0.852
+7     classif.nnet    0.443    0.813    0.715    0.837
+```
+
+</div><!-- ------------------------------------ end of first column ------ -->
+<div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
+<div style="float: left; width: 48%;"><!-- ---- start of second column --- --> 
+
+<img src="../img/model-fit-mcc-eval.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+
+</div><!-- ------------------------------------ end of second column ----- -->
+<div style="clear: both"></div><!-- end cols for text over both cols below -->
+
+
+## todo
+
+[[todo]]: plot of non-rounded summary data for all measures 
+
+
+## Performance in Test Set
+
+[[todo]]
+
+
+## Most important Features
+
+<div></div><!-- ------------------------------- needed as is before cols - -->
+<div style="float: left; width: 48%;"><!-- ---- start of first column ---- -->
+
+Most important features:
+
+* Working overtime
+* Job role (but with low confidence)
+* Total working years
+* Number of companies worked for
+* Years in current role
+* Education field
+* Work life balance
+
+</div><!-- ------------------------------------ end of first column ------ -->
+<div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
+<div style="float: left; width: 48%;"><!-- ---- start of second column --- --> 
+
+<img src="../img/varimp-glmboost-fact.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+
+</div><!-- ------------------------------------ end of second column ----- -->
+<div style="clear: both"></div><!-- end cols for text over both cols below -->
+
+
+## Feature Effects: Overtime
+
+<div></div><!-- ------------------------------- needed as is before cols - -->
+<div style="float: left; width: 48%;"><!-- ---- start of first column ---- -->
+
+* ICE plot: Independent Conditional Expectations
+    * Predicted probability when 1 feature is varied (others untouched)
+    * For all observations individually  
+      (dots or thin lines)
+    * And summary measure (median or mean)
+    * For categorical variables: probability for each outcome  
+      (Focus on right plot: Probability for `Attrition == Yes`)
+
+* Higher probability for Attrition of you (have to?) work overtime
+
+</div><!-- ------------------------------------ end of first column ------ -->
+<div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
+<div style="float: left; width: 48%;"><!-- ---- start of second column --- --> 
+
+<img src="../img/feat-eff-overtime-glmboost.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+
+</div><!-- ------------------------------------ end of second column ----- -->
+<div style="clear: both"></div><!-- end cols for text over both cols below -->
+
+
+## Feature Effects: Job Role
+
+<img src="../img/feat-eff-jobrole-glmboost.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+
+* Highest risk for Sales Representatives, Lab Technicians and HR
+
+
+## Feature Effects: Total Working Years
+
+<div></div><!-- ------------------------------- needed as is before cols - -->
+<div style="float: left; width: 48%;"><!-- ---- start of first column ---- -->
+
+* The more working years, the lower the probability for attrition
+* Similar effect for age (correlated)
+
+</div><!-- ------------------------------------ end of first column ------ -->
+<div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
+<div style="float: left; width: 48%;"><!-- ---- start of second column --- --> 
+
+<img src="../img/feat-eff-totalworkingyears-glmboost.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+
+</div><!-- ------------------------------------ end of second column ----- -->
+<div style="clear: both"></div><!-- end cols for text over both cols below -->
+
+
+## Feature Effects: Number of Companies worked
+
+<div></div><!-- ------------------------------- needed as is before cols - -->
+<div style="float: left; width: 48%;"><!-- ---- start of first column ---- -->
+
+* The more jobs someone held, the higher the probability for attrition
+
+
+</div><!-- ------------------------------------ end of first column ------ -->
+<div style="float: left; width: 4%"><br></div><!-- spacing column -------- -->
+<div style="float: left; width: 48%;"><!-- ---- start of second column --- --> 
+
+<img src="../img/feat-eff-numcompaniesworked-glmboost.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+
+</div><!-- ------------------------------------ end of second column ----- -->
+<div style="clear: both"></div><!-- end cols for text over both cols below -->
+
+
+## Feature Effects: Work Life Balance
+
+<img src="../img/feat-eff-worklifebalance-glmboost.jpg" width="100%" style="display: block; margin: auto auto auto 0;" />
+
+* Was treated as categorical variable: Lowest risk in category 3
+* In case that this is assessed via a Likert scale, that might be of interest
+* Assuming high values are "good work life balance", this seems to indicate that work life balance can be too good...
+
+
+## Discussion
+
+* Results were not very surprising: Working overtime, less years in jobs, more jobs held are associated with higher probability for attrition
+* Work-life-balance effects somewhat interesting
+
+* Model performance only mediocre at best
+* Effects are not very strong
+* Other features might be more valuable: Management style, flexible working time, amount and quality of team work, etc.
+* Some potentially useful features might be ethically and legally critical (GDPR), e.g., shifts in starting time
+
+* Apart from a better model, other things might be more valuable to understand attrition: Qualitative research, starting with sitting down with your employees and listening to them 
+
+
