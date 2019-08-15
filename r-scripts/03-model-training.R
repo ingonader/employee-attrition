@@ -454,11 +454,14 @@ plotBMRBoxplots_cust <- function(bmr, measure_mlr, measure_name, measure_longnam
                   pretty.names = TRUE) +
     aes(fill = learner.id) + geom_point(alpha = .5) +
     labs(
-      title = paste0(measure_longname, " (", measure_name, ") of ", n_reps, "x repeated ",
-                     n_folds, "-fold CV"),
-      subtitle = paste0("with hyperparameters from ", n_maxit, " iterations of random search cross validation"),
+      title = paste0(measure_longname, " (", measure_name, ")"),  
+      subtitle = paste0("of ", n_reps, "x repeated ",
+                        n_folds, "-fold cross-validation ", "\n",  
+                        "with hyperparameters from ", n_maxit, 
+                        " iterations of \nrandom search cross validation"),
       y = measure_name,
-      x = ""
+      x = "",
+      fill = "Model"
     ) +
     theme(axis.text.x = element_text(angle = 30, hjust = 1)) +
     theme(
@@ -467,9 +470,9 @@ plotBMRBoxplots_cust <- function(bmr, measure_mlr, measure_name, measure_longnam
 }
 
 plotBMRBoxplots_cust(bmr_train, mcc, "MCC", "Matthew's Correlation Coefficient")
-ggsave_cust("model-fit-mcc-train-cv.jpg", width = 5, height = 5)
+ggsave_cust("model-fit-mcc-train-cv.jpg", width = 4, height = 4)
 plotBMRBoxplots_cust(bmr_train, auc, "AUC", "Area under the ROC curve")
-ggsave_cust("model-fit-auc-train-cv.jpg", width = 5, height = 5)
+ggsave_cust("model-fit-auc-train-cv.jpg", width = 4, height = 4)
 
 ## ========================================================================= ##
 ## refit all learners on full training set and evaluate on eval set
@@ -521,18 +524,48 @@ bmr_traineval_summary %>% select(matches("learner|bac"))
 bmr_traineval_summary %>% select(matches("learner|auc"))
 bmr_traineval_summary %>% select(matches("learner|acc"))
 
-bmr_traineval_summary_rnd <- bmr_traineval_summary %>% 
+bmr_traineval_summary_sel <- bmr_traineval_summary %>% 
   select(matches("learner|mcc|bac|auc|acc"))
-bmr_traineval_summary_rnd[2:5] <- round(bmr_traineval_summary_rnd[2:5], 3)
-names(bmr_traineval_summary_rnd) <- names(bmr_traineval_summary_rnd) %>% 
+names(bmr_traineval_summary_sel) <- names(bmr_traineval_summary_sel) %>% 
   stringr::str_replace("\\.mean", "")
+bmr_traineval_summary_rnd <- bmr_traineval_summary_sel
+bmr_traineval_summary_rnd[2:5] <- round(bmr_traineval_summary_rnd[2:5], 3)
+
 bmr_traineval_summary_rnd
+bmr_traineval_summary_plot <- bmr_traineval_summary_sel %>% 
+  reshape2::melt() %>%
+  mutate(
+    measure = plyr::revalue(variable, c(
+      "auc.test" = "Area under\nCurve (AUC)",
+      "mcc.test" = "Matthew's Corr.\nCoef. (MCC)",
+      "bac.test" = "Balanced\nAccuracy (BAC)",
+      "acc.test" = "Accuracy (ACC)"
+    ))#,
+    #learner.id = stringr::str_replace(learner.id, "classif\\.", "")
+  )
+levels(bmr_traineval_summary_plot[["learner.id"]]) <- stringr::str_replace(
+  levels(bmr_traineval_summary_plot[["learner.id"]]), 
+  "classif\\.", "")
+ggplot(bmr_traineval_summary_plot, 
+       aes(y = value, x = measure, fill = learner.id)) + 
+  geom_bar(stat = "identity", position = "dodge") + 
+  facet_wrap(vars(measure), scales = "free") +
+  labs(
+    y = "Performance in evaluatoin set",
+    x = "",
+    fill = "Model"
+  ) + 
+  theme(#axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+ggsave_cust("model-fit-all-eval.jpg", width = 4, height = 4)
+
 
 plotBMRBoxplots(bmr_traineval, measure = mcc)
-ggsave_cust("model-fit-mcc-eval.jpg", width = 5, height = 5)
+ggsave_cust("model-fit-mcc-eval.jpg", width = 4, height = 4)
 
 plotBMRBoxplots(bmr_traineval, measure = auc)
-ggsave_cust("model-fit-auc-eval.jpg", width = 5, height = 5)
+ggsave_cust("model-fit-auc-eval.jpg", width = 4, height = 4)
 
 # save.image(file = file.path(path_tmp, "03-model-training___dump01.Rdata"))
 # load(file = file.path(path_tmp, "03-model-training___dump01.Rdata"))
@@ -582,12 +615,39 @@ toc()
 bmr_traineval_fact
 
 plotBMRBoxplots(bmr_traineval_fact, measure = mcc)
-ggsave_cust("model-fit-mcc-eval-factor.jpg", width = 5, height = 5)
+ggsave_cust("model-fit-mcc-eval-factor.jpg", width = 4, height = 4)
 
 plotBMRBoxplots(bmr_traineval_fact, measure = auc)
-ggsave_cust("model-fit-auc-eval-factor.jpg", width = 5, height = 5)
+ggsave_cust("model-fit-auc-eval-factor.jpg", width = 4, height = 4)
 
 
+## ========================================================================= ##
+## performance in test set
+## ========================================================================= ##
+
+get_preds <- function(classif_name, bmr_obj = bmr_traineval_fact, task = 1, data = dat_test) {
+  ret <- predict(getBMRModels(bmr_obj)[[task]][[classif_name]][[1]], 
+                 newdata = data %>% as.data.frame())
+}
+pred_logreg_fact <- get_preds("classif.logreg")
+pred_glmnet_fact <- get_preds("classif.glmnet")
+pred_ranger <- get_preds("classif.ranger", bmr_traineval, data = create_mm_data(dat_test))
+pred_glmboost_fact <- get_preds("classif.glmboost")
+pred_xgboost <- get_preds("classif.xgboost", bmr_traineval, data = create_mm_data(dat_test))
+pred_ada <- get_preds("classif.ada", bmr_traineval, data = create_mm_data(dat_test))
+pred_nnet_fact <- get_preds("classif.nnet")
+
+
+calculateConfusionMatrix(pred_glmnet_fact, relative = TRUE)
+calculateConfusionMatrix(pred_glmboost_fact, relative = TRUE)
+
+performance(pred_logreg_fact, measures = list(mcc, auc, bac, acc))
+performance(pred_glmnet_fact, measures = list(mcc, auc, bac, acc))
+performance(pred_ranger, measures = list(mcc, auc, bac, acc))
+performance(pred_glmboost_fact, measures = list(mcc, auc, bac, acc))
+performance(pred_xgboost, measures = list(mcc, auc, bac, acc))
+performance(pred_ada, measures = list(mcc, auc, bac, acc))
+performance(pred_nnet_fact, measures = list(mcc, auc, bac, acc))
 
 ## ========================================================================= ##
 ## inspect best model using iml package
