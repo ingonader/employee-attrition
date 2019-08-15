@@ -7,14 +7,11 @@
 # rm(list = ls())
 
 ## ========================================================================= ##
-## define global variables and set options
+## general setup: define global variables and set options
 ## ========================================================================= ##
 
-path_raw <- "."  ## current path of project
-path_dat <- file.path(path_raw, "data")
-path_img <- file.path(path_raw, "img")
-
-options(tibble.width = Inf)
+source("./r-scripts/00-setup.R")
+source("./r-scripts/function-library.R")
 
 ## ========================================================================= ##
 ## load packages
@@ -25,20 +22,6 @@ library(readr)
 library(magrittr)
 library(purrr)
 library(ggplot2)
-
-## ========================================================================= ##
-## function definitions
-## ========================================================================= ##
-
-#' customized ggsave function to avoid retyping all parameters:
-#'
-#' @param fname filename to save in \code{path_img} (defined globally)
-#' @param ... 
-ggsave_cust <- function(fname, p = last_plot(), width = 8, height = 4, dpi = 300, ...) {
-  ggsave(filename = file.path(path_img, fname), 
-         plot = p,
-         width = width, height = height, dpi = dpi, ...)
-}
 
 ## ========================================================================= ##
 ## load data
@@ -72,7 +55,6 @@ dat_all <- dat_raw
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ## 
 
 dim(dat_all)
-
 
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ## 
 ## check missing values
